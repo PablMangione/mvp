@@ -20,15 +20,25 @@ public abstract class BaseEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
     @PrePersist
-    protected void onCreate() {
+    private void onCreate() {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }
         onPrePersist();
     }
 
+    @PreUpdate
+    private void onUpdate() {
+        updatedAt = LocalDateTime.now();
+        onPreUpdate();
+    }
+
     protected void onPrePersist() {}
+    protected void onPreUpdate(){}
 
     @Override
     public boolean equals(Object o) {
