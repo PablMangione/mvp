@@ -29,7 +29,7 @@ public class CourseGroup extends BaseEntity {
 
     @NotNull(message = "Teacher is required")
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "teacher_id", nullable = false)
+    @JoinColumn(name = "teacher_id")
     private Teacher teacher;
 
     @NotNull(message = "Status is required")

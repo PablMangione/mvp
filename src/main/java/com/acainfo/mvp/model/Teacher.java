@@ -1,5 +1,6 @@
 package com.acainfo.mvp.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -15,7 +16,7 @@ import java.util.Set;
 })
 @Getter
 @Setter
-@ToString(exclude = {"courseGroups"})
+@ToString(exclude = {"courseGroups","password"})
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -35,11 +36,18 @@ public class Teacher extends BaseEntity {
     @NotBlank(message = "Password is required")
     @Size(min = 8, message = "Password must be at least 8 characters long")
     @Column(name = "password", nullable = false)
+    @JsonIgnore
     private String password;
 
-    @OneToMany(mappedBy = "teacher", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @Builder.Default
+    @OneToMany(mappedBy = "teacher",
+            cascade = {CascadeType.PERSIST, CascadeType.MERGE}, // ¡sin REMOVE!
+            orphanRemoval = false)
     private Set<CourseGroup> courseGroups = new HashSet<>();
+
+    @PreRemove
+    private void dissociateGroups() {
+        courseGroups.forEach(cg -> cg.setTeacher(null));
+    }
 
     // Helper methods for managing bidirectional relationships
     public void addCourseGroup(CourseGroup courseGroup) {

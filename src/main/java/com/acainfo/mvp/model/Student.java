@@ -1,5 +1,6 @@
 package com.acainfo.mvp.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -17,7 +18,7 @@ import java.util.Set;
 })
 @Getter
 @Setter
-@ToString(exclude = {"enrollments", "groupRequests"})
+@ToString(exclude = {"enrollments", "groupRequests","password"})
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -37,6 +38,7 @@ public class Student extends BaseEntity {
     @NotBlank(message = "Password is required")
     @Size(min = 8, message = "Password must be at least 8 characters long")
     @Column(name = "password", nullable = false)
+    @JsonIgnore
     private String password;
 
     @NotBlank(message = "Major is required")
