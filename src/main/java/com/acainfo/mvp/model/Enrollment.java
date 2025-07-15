@@ -50,7 +50,9 @@ public class Enrollment extends BaseEntity {
 
     @Override
     protected void onPrePersist() {
-        super.onCreate();
+        if (enrollmentDate == null) {
+            enrollmentDate = LocalDateTime.now();
+        }
         if (paymentStatus == null) {
             paymentStatus = PaymentStatus.PENDING;
         }

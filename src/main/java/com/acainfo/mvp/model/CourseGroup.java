@@ -70,7 +70,6 @@ public class CourseGroup extends BaseEntity {
 
     @Override
     protected void onPrePersist() {
-        super.onCreate();
         if (status == null) {
             status = CourseGroupStatus.PLANNED;
         }

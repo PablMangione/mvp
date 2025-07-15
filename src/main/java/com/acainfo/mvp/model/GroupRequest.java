@@ -48,7 +48,6 @@ public class GroupRequest extends BaseEntity {
 
     @Override
     protected void onPrePersist() {
-        super.onCreate();
         if (requestDate == null) {
             requestDate = LocalDateTime.now();
         }

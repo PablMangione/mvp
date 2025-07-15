@@ -10,10 +10,6 @@ import java.util.Objects;
 @MappedSuperclass
 @Getter
 @Setter
-@ToString
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public abstract class BaseEntity {
 
     @Id
