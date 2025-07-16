@@ -14,6 +14,8 @@ import java.util.List;
 @Repository
 public interface GroupRequestRepository extends JpaRepository<GroupRequest, Long> {
 
+    Long countBySubjectIdAndStatus(Long subjectId, RequestStatus status);
+
     // Solicitudes por estudiante
     @EntityGraph(attributePaths = {"subject"})
     List<GroupRequest> findByStudentId(Long studentId);

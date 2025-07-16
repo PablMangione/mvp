@@ -15,6 +15,8 @@ import java.util.Optional;
 @Repository
 public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
 
+    Long countByCourseGroupId(Long courseGroupId);
+
     // Buscar por estudiante y grupo (único)
     Optional<Enrollment> findByStudentIdAndCourseGroupId(Long studentId, Long courseGroupId);
 
