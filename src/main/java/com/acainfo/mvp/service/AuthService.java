@@ -2,6 +2,7 @@ package com.acainfo.mvp.service;
 
 import com.acainfo.mvp.dto.auth.*;
 import com.acainfo.mvp.dto.common.ApiResponseDto;
+import com.acainfo.mvp.dto.student.StudentRegistrationDto;
 import com.acainfo.mvp.exception.auth.AuthenticationException;
 import com.acainfo.mvp.exception.auth.EmailAlreadyExistsException;
 import com.acainfo.mvp.exception.auth.InvalidCredentialsException;

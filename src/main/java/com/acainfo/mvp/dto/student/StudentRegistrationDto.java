@@ -1,4 +1,4 @@
-package com.acainfo.mvp.dto.auth;
+package com.acainfo.mvp.dto.student;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

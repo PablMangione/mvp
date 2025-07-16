@@ -2,6 +2,7 @@ package com.acainfo.mvp.service;
 
 import com.acainfo.mvp.dto.auth.*;
 import com.acainfo.mvp.dto.common.ApiResponseDto;
+import com.acainfo.mvp.dto.student.StudentRegistrationDto;
 import com.acainfo.mvp.exception.auth.*;
 import com.acainfo.mvp.model.Student;
 import com.acainfo.mvp.model.Teacher;
