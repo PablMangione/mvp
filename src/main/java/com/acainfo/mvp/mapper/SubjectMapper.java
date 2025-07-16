@@ -16,8 +16,6 @@ import java.util.stream.Collectors;
 @Component
 public class SubjectMapper {
 
-    private static final int DEFAULT_MAX_CAPACITY = 30; // TODO: Obtener de configuración o entidad
-
     /**
      * Convierte una entidad Subject a SubjectDto básico.
      *
@@ -107,7 +105,7 @@ public class SubjectMapper {
                 .groupStatus(group.getStatus().name())
                 .price(group.getPrice())
                 .enrolledStudents(group.getEnrollments().size())
-                .maxCapacity(DEFAULT_MAX_CAPACITY)
+                .maxCapacity(group.getMaxCapacity()) // Usando el campo real
                 .sessions(group.getGroupSessions().stream()
                         .map(this::toSessionTimeDto)
                         .collect(Collectors.toList()))

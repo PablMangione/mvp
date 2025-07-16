@@ -449,16 +449,24 @@ class StudentServiceTest {
     @DisplayName("Verificar si puede inscribirse en grupo - puede")
     void canEnrollInGroup_True() {
         // Given
+        activeGroup.setMaxCapacity(30);
+        // Simular que ya hay 10 inscripciones
+        for (int i = 0; i < 10; i++) {
+            Enrollment enrollment = Enrollment.builder()
+                    .student(Student.builder().build())
+                    .courseGroup(activeGroup)
+                    .build();
+            activeGroup.getEnrollments().add(enrollment);
+        }
         when(enrollmentRepository.existsByStudentIdAndCourseGroupId(1L, 1L)).thenReturn(false);
         when(courseGroupRepository.findById(1L)).thenReturn(Optional.of(activeGroup));
-        when(enrollmentRepository.countByCourseGroupId(1L)).thenReturn(10L);
-
         // When
         boolean result = studentService.canEnrollInGroup(1L, 1L);
-
         // Then
         assertThat(result).isTrue();
     }
+
+
 
     @Test
     @DisplayName("Verificar si puede inscribirse en grupo - ya inscrito")
@@ -477,14 +485,53 @@ class StudentServiceTest {
     @DisplayName("Verificar si puede inscribirse en grupo - grupo lleno")
     void canEnrollInGroup_GroupFull() {
         // Given
+        activeGroup.setMaxCapacity(30);
+        // Simular que el grupo está lleno
+        for (int i = 0; i < 30; i++) {
+            Enrollment enrollment = Enrollment.builder()
+                    .student(Student.builder().build())
+                    .courseGroup(activeGroup)
+                    .build();
+            activeGroup.getEnrollments().add(enrollment);
+        }
+
         when(enrollmentRepository.existsByStudentIdAndCourseGroupId(1L, 1L)).thenReturn(false);
         when(courseGroupRepository.findById(1L)).thenReturn(Optional.of(activeGroup));
-        when(enrollmentRepository.countByCourseGroupId(1L)).thenReturn(30L);
 
         // When
         boolean result = studentService.canEnrollInGroup(1L, 1L);
 
         // Then
         assertThat(result).isFalse();
+    }
+
+    @Test
+    @DisplayName("Obtener información de capacidad del grupo")
+    void getGroupCapacity_Success() {
+        // Given
+        activeGroup.setMaxCapacity(30);
+        // Agregar algunas inscripciones
+        for (int i = 0; i < 20; i++) {
+            Enrollment enrollment = Enrollment.builder()
+                    .student(Student.builder().build())
+                    .courseGroup(activeGroup)
+                    .build();
+            activeGroup.getEnrollments().add(enrollment);
+        }
+
+        when(courseGroupRepository.findById(1L)).thenReturn(Optional.of(activeGroup));
+
+        // When
+        ApiResponseDto<StudentService.GroupCapacityDto> result = studentService.getGroupCapacity(1L);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.getData()).isNotNull();
+        assertThat(result.getData().getGroupId()).isEqualTo(1L);
+        assertThat(result.getData().getMaxCapacity()).isEqualTo(30);
+        assertThat(result.getData().getCurrentEnrollments()).isEqualTo(20);
+        assertThat(result.getData().getAvailableSpots()).isEqualTo(10);
+        assertThat(result.getData().isFull()).isFalse();
     }
 }

@@ -265,17 +265,67 @@ public class StudentService {
 
         // Verificar si ya está inscrito
         if (enrollmentRepository.existsByStudentIdAndCourseGroupId(studentId, courseGroupId)) {
+            log.debug("El estudiante ya está inscrito en el grupo");
             return false;
         }
 
-        // Verificar estado del grupo
+        // Verificar estado del grupo y capacidad
         CourseGroup group = courseGroupRepository.findById(courseGroupId).orElse(null);
-        if (group == null || group.getStatus() != CourseGroupStatus.ACTIVE) {
+        if (group == null) {
+            log.debug("El grupo no existe");
             return false;
         }
 
-        // Verificar capacidad (asumiendo máximo 30 por ahora)
-        int currentEnrollments = enrollmentRepository.countByCourseGroupId(courseGroupId).intValue();
-        return currentEnrollments < 30; // TODO: Agregar campo maxCapacity en CourseGroup
+        if (group.getStatus() != CourseGroupStatus.ACTIVE) {
+            log.debug("El grupo no está activo. Estado actual: {}", group.getStatus());
+            return false;
+        }
+
+        // Verificar capacidad usando el campo maxCapacity
+        boolean hasCapacity = group.hasCapacity();
+        if (!hasCapacity) {
+            log.debug("El grupo está lleno. Capacidad: {}/{}",
+                    group.getEnrollments().size(), group.getMaxCapacity());
+        }
+
+        return hasCapacity;
+    }
+
+    /**
+     * Obtiene información de capacidad de un grupo.
+     *
+     * @param courseGroupId ID del grupo
+     * @return información de capacidad
+     */
+    public ApiResponseDto<GroupCapacityDto> getGroupCapacity(Long courseGroupId) {
+        log.info("Obteniendo información de capacidad del grupo {}", courseGroupId);
+
+        CourseGroup group = courseGroupRepository.findById(courseGroupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Grupo no encontrado"));
+
+        GroupCapacityDto capacityDto = GroupCapacityDto.builder()
+                .groupId(group.getId())
+                .maxCapacity(group.getMaxCapacity())
+                .currentEnrollments(group.getEnrollments().size())
+                .availableSpots(group.getAvailableSpots())
+                .isFull(!group.hasCapacity())
+                .build();
+
+        return ApiResponseDto.success(capacityDto, "Información de capacidad obtenida");
+    }
+
+    /**
+     * DTO para información de capacidad del grupo
+     */
+    @lombok.Data
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class GroupCapacityDto {
+        private Long groupId;
+        private Integer maxCapacity;
+        private Integer currentEnrollments;
+        private Integer availableSpots;
+        private boolean isFull;
     }
 }

@@ -5,6 +5,7 @@ import com.acainfo.mvp.model.enums.CourseGroupType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
@@ -49,6 +50,12 @@ public class CourseGroup extends BaseEntity {
     @Column(name = "price", nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
+    @NotNull(message = "Max capacity is required")
+    @Min(value = 1, message = "Max capacity must be at least 1")
+    @Column(name = "max_capacity", nullable = false)
+    @Builder.Default
+    private Integer maxCapacity = 30;
+
     @OneToMany(mappedBy = "courseGroup", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default
     private Set<Enrollment> enrollments = new HashSet<>();
@@ -75,6 +82,9 @@ public class CourseGroup extends BaseEntity {
         if (type == null) {
             type = CourseGroupType.REGULAR;
         }
+        if (maxCapacity == null) {
+            maxCapacity = 30;
+        }
     }
 
     // Helper methods for managing bidirectional relationships
@@ -96,5 +106,15 @@ public class CourseGroup extends BaseEntity {
     public void removeGroupSession(GroupSession groupSession) {
         groupSessions.remove(groupSession);
         groupSession.setCourseGroup(null);
+    }
+
+    // Helper method to check if group has capacity
+    public boolean hasCapacity() {
+        return enrollments.size() < maxCapacity;
+    }
+
+    // Helper method to get available spots
+    public int getAvailableSpots() {
+        return Math.max(0, maxCapacity - enrollments.size());
     }
 }
