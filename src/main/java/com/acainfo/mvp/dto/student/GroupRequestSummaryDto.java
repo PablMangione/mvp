@@ -16,6 +16,6 @@ public class GroupRequestSummaryDto {
     private Long requestId;
     private Long subjectId;
     private String subjectName;
-    private LocalDateTime requestDate;
+    private LocalDateTime createdAt;
     private RequestStatus status;
 }

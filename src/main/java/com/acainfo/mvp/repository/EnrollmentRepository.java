@@ -43,7 +43,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     List<Enrollment> findWithDetailsByPaymentStatus(PaymentStatus paymentStatus);
 
     // Inscripciones por fecha
-    List<Enrollment> findByEnrollmentDateBetween(LocalDateTime start, LocalDateTime end);
+    List<Enrollment> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 
     // Inscripciones pendientes de pago por estudiante - Optimizado
     @EntityGraph(attributePaths = {"courseGroup.subject"})
@@ -75,7 +75,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
             "JOIN FETCH e.courseGroup cg " +
             "JOIN FETCH cg.subject " +
             "WHERE e.paymentStatus = 'PENDING' " +
-            "AND e.enrollmentDate < :cutoffDate")
+            "AND e.createdAt < :cutoffDate")
     List<Enrollment> findOverduePendingPayments(@Param("cutoffDate") LocalDateTime cutoffDate);
 
     // Total recaudado por grupo - DTO projection
@@ -98,6 +98,6 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
             "JOIN FETCH e.courseGroup cg " +
             "JOIN FETCH cg.subject " +
             "LEFT JOIN FETCH cg.teacher " +
-            "ORDER BY e.enrollmentDate DESC")
+            "ORDER BY e.createdAt DESC")
     List<Enrollment> findAllWithFullDetails();
 }

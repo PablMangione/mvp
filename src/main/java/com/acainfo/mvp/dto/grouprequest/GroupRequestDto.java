@@ -16,6 +16,6 @@ public class GroupRequestDto extends BaseDto {
     private String studentName;
     private Long subjectId;
     private String subjectName;
-    private LocalDateTime requestDate;
+    private LocalDateTime createdAt;
     private RequestStatus status;
 }

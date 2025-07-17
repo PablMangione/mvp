@@ -29,9 +29,6 @@ public class Enrollment extends BaseEntity {
     @JoinColumn(name = "course_group_id", nullable = false)
     private CourseGroup courseGroup;
 
-    @Column(name = "enrollment_date", nullable = false, updatable = false)
-    private LocalDateTime enrollmentDate;
-
     @NotNull(message = "Payment status is required")
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_status", nullable = false)
@@ -50,9 +47,6 @@ public class Enrollment extends BaseEntity {
 
     @Override
     protected void onPrePersist() {
-        if (enrollmentDate == null) {
-            enrollmentDate = LocalDateTime.now();
-        }
         if (paymentStatus == null) {
             paymentStatus = PaymentStatus.PENDING;
         }

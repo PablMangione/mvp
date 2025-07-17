@@ -176,7 +176,6 @@ public class StudentService {
         GroupRequest request = GroupRequest.builder()
                 .student(student)
                 .subject(subject)
-                .requestDate(LocalDateTime.now())
                 .status(RequestStatus.PENDING)
                 .build();
 

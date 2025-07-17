@@ -663,13 +663,14 @@ public class AdminService {
                             .subjectMajor(subject.getMajor())
                             .courseYear(subject.getCourseYear())
                             .requestCount(requests.size())
-                            .oldestRequestDate(requests.stream()
-                                    .map(GroupRequest::getRequestDate)
+                            .oldestCreatedAt(requests.stream()
+                                    .map(GroupRequest::getCreatedAt)
                                     .min(LocalDateTime::compareTo)
                                     .orElse(null))
                             .build();
                 })
-                .sorted((a, b) -> Integer.compare(b.getRequestCount(), a.getRequestCount()))
+                .sorted((a, b)
+                        -> Integer.compare(b.getRequestCount(), a.getRequestCount()))
                 .collect(Collectors.toList());
 
         return ApiResponseDto.success(details,
@@ -741,6 +742,6 @@ public class AdminService {
         private String subjectMajor;
         private Integer courseYear;
         private int requestCount;
-        private LocalDateTime oldestRequestDate;
+        private LocalDateTime oldestCreatedAt;
     }
 }

@@ -79,7 +79,7 @@ public class AuthService {
      *
      * @param loginDto credenciales de login
      * @return respuesta con los datos del estudiante autenticado
-     * @throws InvalidCredentialsException si las credenciales son inválidas
+     * @throws InvalidCredentialsException si las credenciales son inválidasacainfodb
      */
     @Transactional(readOnly = true)
     public ApiResponseDto<LoginResponseDto> loginStudent(LoginRequestDto loginDto) {

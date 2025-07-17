@@ -19,6 +19,6 @@ public class EnrollmentSummaryDto {
     private String teacherName;
     private String groupType;
     private String groupStatus;
-    private LocalDateTime enrollmentDate;
+    private LocalDateTime createdAt;
     private PaymentStatus paymentStatus;
 }

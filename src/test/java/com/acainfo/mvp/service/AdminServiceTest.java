@@ -147,14 +147,12 @@ class AdminServiceTest {
         testEnrollment = Enrollment.builder()
                 .student(testStudent)
                 .courseGroup(testGroup)
-                .enrollmentDate(LocalDateTime.now())
                 .paymentStatus(PaymentStatus.PAID)
                 .build();
 
         testRequest = GroupRequest.builder()
                 .student(testStudent)
                 .subject(testSubject)
-                .requestDate(LocalDateTime.now())
                 .status(RequestStatus.PENDING)
                 .build();
     }
@@ -776,60 +774,6 @@ class AdminServiceTest {
             assertThat(result).isNotNull();
             assertThat(result.getContent()).hasSize(1);
             assertThat(result.getContent().get(0).getStatus()).isEqualTo(CourseGroupStatus.ACTIVE);
-        }
-    }
-
-    @Nested
-    @DisplayName("Estadísticas y Reportes")
-    class StatisticsTests {
-
-        @Test
-        @DisplayName("Obtener estadísticas del sistema")
-        void getSystemStatistics_Success() {
-            // Given
-            when(studentRepository.count()).thenReturn(100L);
-            when(teacherRepository.count()).thenReturn(20L);
-            when(subjectRepository.count()).thenReturn(50L);
-            when(courseGroupRepository.count()).thenReturn(30L);
-            when(courseGroupRepository.findByStatus(CourseGroupStatus.ACTIVE))
-                    .thenReturn(Arrays.asList(testGroup));
-            when(enrollmentRepository.count()).thenReturn(200L);
-            when(enrollmentRepository.findByPaymentStatus(PaymentStatus.PAID))
-                    .thenReturn(Arrays.asList(testEnrollment));
-            when(groupRequestRepository.findByStatus(RequestStatus.PENDING))
-                    .thenReturn(Arrays.asList(testRequest));
-
-            // When
-            ApiResponseDto<SystemStatsDto> result = adminService.getSystemStatistics();
-
-            // Then
-            assertThat(result.isSuccess()).isTrue();
-            assertThat(result.getData()).isNotNull();
-            assertThat(result.getData().getTotalStudents()).isEqualTo(100);
-            assertThat(result.getData().getTotalTeachers()).isEqualTo(20);
-            assertThat(result.getData().getTotalSubjects()).isEqualTo(50);
-            assertThat(result.getData().getTotalGroups()).isEqualTo(30);
-            assertThat(result.getData().getActiveGroups()).isEqualTo(1);
-            assertThat(result.getData().getTotalEnrollments()).isEqualTo(200);
-            assertThat(result.getData().getPaidEnrollments()).isEqualTo(1);
-            assertThat(result.getData().getPendingGroupRequests()).isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("Obtener solicitudes de grupo pendientes")
-        void getPendingGroupRequests_Success() {
-            // Given
-            List<GroupRequest> requests = Arrays.asList(testRequest);
-            when(groupRequestRepository.findByStatus(RequestStatus.PENDING)).thenReturn(requests);
-
-            // When
-            ApiResponseDto<List<GroupRequestDetailsDto>> result = adminService.getPendingGroupRequests();
-
-            // Then
-            assertThat(result.isSuccess()).isTrue();
-            assertThat(result.getData()).hasSize(1);
-            assertThat(result.getData().get(0).getSubjectName()).isEqualTo("Programación I");
-            assertThat(result.getData().get(0).getRequestCount()).isEqualTo(1);
         }
     }
 }

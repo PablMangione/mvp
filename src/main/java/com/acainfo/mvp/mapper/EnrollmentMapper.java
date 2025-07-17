@@ -34,7 +34,7 @@ public class EnrollmentMapper {
                 .courseGroupId(group.getId())
                 .subjectName(group.getSubject().getName())
                 .teacherName(group.getTeacher() != null ? group.getTeacher().getName() : "Por asignar")
-                .enrollmentDate(enrollment.getEnrollmentDate())
+                .enrollmentDate(enrollment.getCreatedAt())
                 .paymentStatus(enrollment.getPaymentStatus())
                 .build();
 
@@ -65,7 +65,7 @@ public class EnrollmentMapper {
                 .teacherName(group.getTeacher() != null ? group.getTeacher().getName() : "Por asignar")
                 .groupType(group.getType().name())
                 .groupStatus(group.getStatus().name())
-                .enrollmentDate(enrollment.getEnrollmentDate())
+                .createdAt(enrollment.getCreatedAt())
                 .paymentStatus(enrollment.getPaymentStatus())
                 .build();
     }

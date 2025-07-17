@@ -30,7 +30,7 @@ public class GroupRequestMapper {
                 .studentName(request.getStudent().getName())
                 .subjectId(request.getSubject().getId())
                 .subjectName(request.getSubject().getName())
-                .requestDate(request.getRequestDate())
+                .createdAt(request.getCreatedAt())
                 .status(request.getStatus())
                 .build();
 
@@ -56,7 +56,7 @@ public class GroupRequestMapper {
                 .requestId(request.getId())
                 .subjectId(request.getSubject().getId())
                 .subjectName(request.getSubject().getName())
-                .requestDate(request.getRequestDate())
+                .createdAt(request.getCreatedAt())
                 .status(request.getStatus())
                 .build();
     }

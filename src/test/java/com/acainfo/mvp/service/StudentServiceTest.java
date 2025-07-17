@@ -142,7 +142,6 @@ class StudentServiceTest {
         testEnrollment = Enrollment.builder()
                 .student(testStudent)
                 .courseGroup(activeGroup)
-                .enrollmentDate(LocalDateTime.now())
                 .paymentStatus(PaymentStatus.PENDING)
                 .build();
         ReflectionTestUtils.setField(testEnrollment, "id", 1L);
@@ -151,7 +150,6 @@ class StudentServiceTest {
         testRequest = GroupRequest.builder()
                 .student(testStudent)
                 .subject(testSubject)
-                .requestDate(LocalDateTime.now())
                 .status(RequestStatus.PENDING)
                 .build();
         ReflectionTestUtils.setField(testRequest, "id", 1L);
@@ -395,7 +393,7 @@ class StudentServiceTest {
                 .teacherName("Dr. García")
                 .groupType("REGULAR")
                 .groupStatus("ACTIVE")
-                .enrollmentDate(testEnrollment.getEnrollmentDate())
+                .createdAt(testEnrollment.getCreatedAt())
                 .paymentStatus(PaymentStatus.PENDING)
                 .build();
 
@@ -425,7 +423,7 @@ class StudentServiceTest {
                 .requestId(1L)
                 .subjectId(1L)
                 .subjectName("Programación I")
-                .requestDate(testRequest.getRequestDate())
+                .createdAt(testRequest.getCreatedAt())
                 .status(RequestStatus.PENDING)
                 .build();
 

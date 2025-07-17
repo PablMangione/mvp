@@ -40,15 +40,15 @@ public interface GroupRequestRepository extends JpaRepository<GroupRequest, Long
     List<GroupRequest> findBySubjectIdAndStatus(Long subjectId, RequestStatus status);
 
     // Solicitudes por fecha
-    List<GroupRequest> findByRequestDateBetween(LocalDateTime start, LocalDateTime end);
+    List<GroupRequest> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 
     // Solicitudes pendientes más antiguas - Optimizado
     @Query("SELECT gr FROM GroupRequest gr " +
             "JOIN FETCH gr.student " +
             "JOIN FETCH gr.subject " +
             "WHERE gr.status = :status " +
-            "ORDER BY gr.requestDate ASC")
-    List<GroupRequest> findByStatusOrderByRequestDateAsc(@Param("status") RequestStatus status);
+            "ORDER BY gr.createdAt ASC")
+    List<GroupRequest> findByStatusOrderByCreatedAtAsc(@Param("status") RequestStatus status);
 
     // Contar solicitudes por asignatura - DTO projection
     @Query("SELECT new map(" +
@@ -80,8 +80,8 @@ public interface GroupRequestRepository extends JpaRepository<GroupRequest, Long
             "JOIN FETCH gr.student " +
             "JOIN FETCH gr.subject " +
             "WHERE gr.status = 'PENDING' " +
-            "AND gr.requestDate < :cutoffDate " +
-            "ORDER BY gr.requestDate")
+            "AND gr.createdAt < :cutoffDate " +
+            "ORDER BY gr.createdAt")
     List<GroupRequest> findOldPendingRequests(@Param("cutoffDate") LocalDateTime cutoffDate);
 
     // Solicitudes con información completa para dashboard

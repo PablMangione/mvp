@@ -162,7 +162,6 @@ class TeacherServiceTest {
         paidEnrollment = Enrollment.builder()
                 .student(testStudent1)
                 .courseGroup(activeGroup)
-                .enrollmentDate(LocalDateTime.now())
                 .paymentStatus(PaymentStatus.PAID)
                 .build();
         ReflectionTestUtils.setField(paidEnrollment, "id", 1L);
@@ -170,7 +169,6 @@ class TeacherServiceTest {
         pendingEnrollment = Enrollment.builder()
                 .student(testStudent2)
                 .courseGroup(activeGroup)
-                .enrollmentDate(LocalDateTime.now())
                 .paymentStatus(PaymentStatus.PENDING)
                 .build();
         ReflectionTestUtils.setField(pendingEnrollment, "id", 2L);
