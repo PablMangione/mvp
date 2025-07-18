@@ -8,6 +8,7 @@ import com.acainfo.mvp.mapper.StudentMapper;
 import com.acainfo.mvp.mapper.TeacherMapper;
 import com.acainfo.mvp.model.Student;
 import com.acainfo.mvp.model.Teacher;
+import com.acainfo.mvp.repository.AdminRepository;
 import com.acainfo.mvp.repository.StudentRepository;
 import com.acainfo.mvp.repository.TeacherRepository;
 import com.acainfo.mvp.security.CustomUserDetails;
@@ -52,6 +53,8 @@ class AuthenticationServiceTest {
     @Mock
     private TeacherRepository teacherRepository;
     @Mock
+    private AdminRepository  adminRepository;
+    @Mock
     private StudentMapper studentMapper;
     @Mock
     private TeacherMapper teacherMapper;
@@ -79,6 +82,7 @@ class AuthenticationServiceTest {
                 authenticationManager,
                 studentRepository,
                 teacherRepository,
+                adminRepository,
                 studentMapper,
                 teacherMapper,
                 sessionUtils

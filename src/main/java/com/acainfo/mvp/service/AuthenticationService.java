@@ -7,6 +7,7 @@ import com.acainfo.mvp.exception.auth.InvalidCredentialsException;
 import com.acainfo.mvp.mapper.StudentMapper;
 import com.acainfo.mvp.mapper.TeacherMapper;
 import com.acainfo.mvp.model.Student;
+import com.acainfo.mvp.repository.AdminRepository;
 import com.acainfo.mvp.repository.StudentRepository;
 import com.acainfo.mvp.repository.TeacherRepository;
 import com.acainfo.mvp.security.CustomUserDetails;
@@ -35,19 +36,23 @@ public class AuthenticationService {
     private final AuthenticationManager authenticationManager;
     private final StudentRepository studentRepository;
     private final TeacherRepository teacherRepository;
+    private final AdminRepository adminRepository;
     private final StudentMapper studentMapper;
     private final TeacherMapper teacherMapper;
+
     private final SessionUtils sessionUtils;
 
     public AuthenticationService(AuthenticationManager authenticationManager,
                                  StudentRepository studentRepository,
                                  TeacherRepository teacherRepository,
+                                 AdminRepository adminRepository,
                                  StudentMapper studentMapper,
                                  TeacherMapper teacherMapper,
                                  SessionUtils sessionUtils) {
         this.authenticationManager = authenticationManager;
         this.studentRepository = studentRepository;
         this.teacherRepository = teacherRepository;
+        this.adminRepository = adminRepository;
         this.studentMapper = studentMapper;
         this.teacherMapper = teacherMapper;
         this.sessionUtils = sessionUtils;
@@ -202,4 +207,38 @@ public class AuthenticationService {
                 .maxInactiveInterval(session.getMaxInactiveInterval())
                 .build();
     }
+
+
+    /**
+     * Verifica si un email ya está registrado en el sistema.
+     * Busca en las tres tablas: estudiantes, profesores y administradores.
+     *
+     * @param email email a verificar
+     * @return true si el email ya existe, false en caso contrario
+     */
+    public boolean isEmailRegistered(String email) {
+        log.debug("Verificando si el email {} está registrado", email);
+
+        // Verificar en estudiantes
+        if (studentRepository.existsByEmail(email)) {
+            log.debug("Email encontrado en tabla de estudiantes");
+            return true;
+        }
+
+        // Verificar en profesores
+        if (teacherRepository.existsByEmail(email)) {
+            log.debug("Email encontrado en tabla de profesores");
+            return true;
+        }
+
+        // Verificar en administradores
+        if (adminRepository.existsByEmail(email)) {
+            log.debug("Email encontrado en tabla de administradores");
+            return true;
+        }
+
+        log.debug("Email {} no está registrado", email);
+        return false;
+    }
+
 }
