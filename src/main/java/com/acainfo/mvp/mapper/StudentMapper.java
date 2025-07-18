@@ -1,98 +1,168 @@
 package com.acainfo.mvp.mapper;
 
-import com.acainfo.mvp.dto.student.StudentDetailDto;
+import com.acainfo.mvp.dto.auth.CurrentUserDto;
+import com.acainfo.mvp.dto.auth.LoginResponseDto;
+import com.acainfo.mvp.dto.student.StudentRegistrationDto;
+import com.acainfo.mvp.dto.student.CreateStudentDto;
+import com.acainfo.mvp.dto.student.EnrollmentSummaryDto;
 import com.acainfo.mvp.dto.student.StudentDto;
+import com.acainfo.mvp.model.Enrollment;
 import com.acainfo.mvp.model.Student;
-import com.acainfo.mvp.model.enums.CourseGroupStatus;
-import com.acainfo.mvp.model.enums.PaymentStatus;
-import com.acainfo.mvp.model.enums.RequestStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 /**
- * Mapper para convertir entre entidades Student y sus DTOs.
+ * Mapper para conversiones entre Student entity y sus DTOs.
+ * Maneja la lógica de transformación considerando seguridad con sesiones HTTP.
  */
 @Component
 public class StudentMapper {
 
+    private final PasswordEncoder passwordEncoder;
+
+    public StudentMapper(PasswordEncoder passwordEncoder) {
+        this.passwordEncoder = passwordEncoder;
+    }
+
     /**
-     * Convierte una entidad Student a StudentDto básico.
-     *
-     * @param student entidad student
-     * @return StudentDto
+     * Convierte Student entity a StudentDto (información pública).
+     * No incluye password ni información sensible.
      */
     public StudentDto toDto(Student student) {
         if (student == null) {
             return null;
         }
 
-        StudentDto dto = StudentDto.builder()
+        return StudentDto.builder()
                 .name(student.getName())
                 .email(student.getEmail())
                 .major(student.getMajor())
                 .build();
-
-        dto.setId(student.getId());
-        dto.setCreatedAt(student.getCreatedAt());
-        dto.setUpdatedAt(student.getUpdatedAt());
-
-        return dto;
     }
 
     /**
-     * Convierte una entidad Student a StudentDetailDto con estadísticas.
-     *
-     * @param student entidad student con relaciones cargadas
-     * @return StudentDetailDto
+     * Convierte Student a LoginResponseDto tras autenticación exitosa.
+     * No incluye token ya que usamos sesiones HTTP.
      */
-    public StudentDetailDto toDetailDto(Student student) {
+    public LoginResponseDto toLoginResponse(Student student) {
         if (student == null) {
             return null;
         }
 
-        // Calcular estadísticas
-        int activeEnrollments = (int) student.getEnrollments().stream()
-                .filter(e -> e.getCourseGroup().getStatus() == CourseGroupStatus.ACTIVE)
-                .count();
-
-        int pendingPayments = (int) student.getEnrollments().stream()
-                .filter(e -> e.getPaymentStatus() == PaymentStatus.PENDING)
-                .count();
-
-        int pendingRequests = (int) student.getGroupRequests().stream()
-                .filter(r -> r.getStatus() == RequestStatus.PENDING)
-                .count();
-
-        StudentDetailDto dto = StudentDetailDto.builder()
-                .name(student.getName())
+        return LoginResponseDto.builder()
+                .id(student.getId())
                 .email(student.getEmail())
-                .major(student.getMajor())
-                .activeEnrollments(activeEnrollments)
-                .pendingPayments(pendingPayments)
-                .pendingRequests(pendingRequests)
+                .name(student.getName())
+                .role("STUDENT")
+                .authenticated(true)
                 .build();
-
-        dto.setId(student.getId());
-        dto.setCreatedAt(student.getCreatedAt());
-        dto.setUpdatedAt(student.getUpdatedAt());
-
-        return dto;
     }
 
     /**
-     * Actualiza una entidad Student con datos de UpdateStudentDto.
-     *
-     * @param student entidad a actualizar
-     * @param updateDto datos de actualización
+     * Convierte Student a CurrentUserDto para verificación de sesión.
      */
-    public void updateEntityFromDto(Student student, com.acainfo.mvp.dto.student.UpdateStudentDto updateDto) {
-        if (updateDto.getName() != null) {
-            student.setName(updateDto.getName());
+    public CurrentUserDto toCurrentUserDto(Student student) {
+        if (student == null) {
+            return CurrentUserDto.builder()
+                    .authenticated(false)
+                    .build();
         }
-        if (updateDto.getEmail() != null) {
-            student.setEmail(updateDto.getEmail());
+
+        return CurrentUserDto.builder()
+                .id(student.getId())
+                .email(student.getEmail())
+                .name(student.getName())
+                .role("STUDENT")
+                .authenticated(true)
+                .build();
+    }
+
+    /**
+     * Crea nuevo Student desde StudentRegistrationDto.
+     * Hashea el password antes de guardar.
+     */
+    public Student toEntity(StudentRegistrationDto dto) {
+        if (dto == null) {
+            return null;
         }
-        if (updateDto.getMajor() != null) {
-            student.setMajor(updateDto.getMajor());
+
+        return Student.builder()
+                .name(dto.getName())
+                .email(dto.getEmail())
+                .password(passwordEncoder.encode(dto.getPassword()))
+                .major(dto.getMajor())
+                .build();
+    }
+
+    /**
+     * Crea nuevo Student desde CreateStudentDto (usado por admin).
+     * Similar a registro pero en contexto administrativo.
+     */
+    public Student toEntity(CreateStudentDto dto) {
+        if (dto == null) {
+            return null;
         }
+
+        return Student.builder()
+                .name(dto.getName())
+                .email(dto.getEmail())
+                .password(passwordEncoder.encode(dto.getPassword()))
+                .major(dto.getMajor())
+                .build();
+    }
+
+    /**
+     * Convierte Enrollment a EnrollmentSummaryDto para vista del alumno.
+     * Solo incluye información relevante para el estudiante.
+     */
+    public EnrollmentSummaryDto toEnrollmentSummary(Enrollment enrollment) {
+        if (enrollment == null) {
+            return null;
+        }
+
+        return EnrollmentSummaryDto.builder()
+                .enrollmentId(enrollment.getId())
+                .courseGroupId(enrollment.getCourseGroup().getId())
+                .subjectName(enrollment.getCourseGroup().getSubject().getName())
+                .teacherName(enrollment.getCourseGroup().getTeacher() != null
+                        ? enrollment.getCourseGroup().getTeacher().getName()
+                        : "Sin asignar")
+                .groupType(enrollment.getCourseGroup().getType().toString())
+                .groupStatus(enrollment.getCourseGroup().getStatus().toString())
+                .createdAt(enrollment.getCreatedAt())
+                .paymentStatus(enrollment.getPaymentStatus())
+                .build();
+    }
+
+    /**
+     * Actualiza campos básicos del Student (sin password).
+     * Usado para actualizaciones parciales.
+     */
+    public void updateBasicInfo(Student student, StudentDto dto) {
+        if (student == null || dto == null) {
+            return;
+        }
+
+        if (dto.getName() != null) {
+            student.setName(dto.getName());
+        }
+        if (dto.getMajor() != null) {
+            student.setMajor(dto.getMajor());
+        }
+        // Email no se actualiza por seguridad
+    }
+
+    /**
+     * Valida si un password sin hashear coincide con el hasheado.
+     */
+    public boolean passwordMatches(String rawPassword, String encodedPassword) {
+        return passwordEncoder.matches(rawPassword, encodedPassword);
+    }
+
+    /**
+     * Hashea un nuevo password.
+     */
+    public String encodePassword(String rawPassword) {
+        return passwordEncoder.encode(rawPassword);
     }
 }

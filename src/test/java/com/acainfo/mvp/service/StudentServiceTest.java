@@ -1,537 +1,655 @@
 package com.acainfo.mvp.service;
 
+import com.acainfo.mvp.dto.auth.ChangePasswordDto;
 import com.acainfo.mvp.dto.common.ApiResponseDto;
-import com.acainfo.mvp.dto.grouprequest.CreateGroupRequestDto;
-import com.acainfo.mvp.dto.grouprequest.GroupRequestResponseDto;
-import com.acainfo.mvp.dto.student.*;
+import com.acainfo.mvp.dto.student.CreateStudentDto;
+import com.acainfo.mvp.dto.student.EnrollmentSummaryDto;
+import com.acainfo.mvp.dto.student.StudentDto;
 import com.acainfo.mvp.dto.subject.SubjectDto;
-import com.acainfo.mvp.dto.subject.SubjectWithGroupsDto;
-import com.acainfo.mvp.exception.student.*;
-import com.acainfo.mvp.exception.student.DuplicateRequestException;
-import com.acainfo.mvp.mapper.EnrollmentMapper;
-import com.acainfo.mvp.mapper.GroupRequestMapper;
+import com.acainfo.mvp.exception.auth.EmailAlreadyExistsException;
+import com.acainfo.mvp.exception.auth.InvalidCredentialsException;
+import com.acainfo.mvp.exception.auth.PasswordMismatchException;
+import com.acainfo.mvp.exception.student.ResourceNotFoundException;
+import com.acainfo.mvp.exception.student.ValidationException;
 import com.acainfo.mvp.mapper.StudentMapper;
 import com.acainfo.mvp.mapper.SubjectMapper;
-import com.acainfo.mvp.model.*;
-import com.acainfo.mvp.model.enums.*;
-import com.acainfo.mvp.repository.*;
+import com.acainfo.mvp.model.CourseGroup;
+import com.acainfo.mvp.model.Enrollment;
+import com.acainfo.mvp.model.Student;
+import com.acainfo.mvp.model.Subject;
+import com.acainfo.mvp.model.enums.CourseGroupStatus;
+import com.acainfo.mvp.model.enums.PaymentStatus;
+import com.acainfo.mvp.repository.StudentRepository;
+import com.acainfo.mvp.repository.SubjectRepository;
+import com.acainfo.mvp.repository.TeacherRepository;
+import com.acainfo.mvp.util.SessionUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+/**
+ * Tests unitarios para StudentService.
+ * Verifica operaciones sobre el perfil del estudiante y consultas académicas.
+ */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("StudentService Tests")
 class StudentServiceTest {
 
     @Mock
     private StudentRepository studentRepository;
-
+    @Mock
+    private TeacherRepository teacherRepository;
     @Mock
     private SubjectRepository subjectRepository;
-
-    @Mock
-    private CourseGroupRepository courseGroupRepository;
-
-    @Mock
-    private EnrollmentRepository enrollmentRepository;
-
-    @Mock
-    private GroupRequestRepository groupRequestRepository;
-
     @Mock
     private StudentMapper studentMapper;
-
     @Mock
     private SubjectMapper subjectMapper;
-
     @Mock
-    private EnrollmentMapper enrollmentMapper;
-
+    private SessionUtils sessionUtils;
     @Mock
-    private GroupRequestMapper groupRequestMapper;
+    private EnrollmentService enrollmentService;
 
     private StudentService studentService;
 
     private Student testStudent;
-    private Subject testSubject;
-    private CourseGroup activeGroup;
-    private Teacher testTeacher;
-    private Enrollment testEnrollment;
-    private GroupRequest testRequest;
+    private Student otherStudent;
+    private StudentDto testStudentDto;
+    private CreateStudentDto validCreateDto;
+    private Subject testSubject1;
+    private Subject testSubject2;
+    private SubjectDto testSubjectDto1;
+    private SubjectDto testSubjectDto2;
+    private EnrollmentSummaryDto testEnrollmentSummaryDto;
+    private ChangePasswordDto validChangePasswordDto;
 
     @BeforeEach
     void setUp() {
-        // Inicializar el servicio manualmente con todos los mocks
         studentService = new StudentService(
                 studentRepository,
+                teacherRepository,
                 subjectRepository,
-                courseGroupRepository,
-                enrollmentRepository,
-                groupRequestRepository,
                 studentMapper,
                 subjectMapper,
-                enrollmentMapper,
-                groupRequestMapper
+                sessionUtils,
+                enrollmentService
         );
-        // Configurar estudiante de prueba
+
+        // Configurar datos de prueba
         testStudent = Student.builder()
                 .name("Juan Pérez")
-                .email("juan.perez@example.com")
+                .email("juan@estudiante.edu")
+                .password("$2a$10$encoded_password")
                 .major("Ingeniería Informática")
                 .enrollments(new HashSet<>())
-                .groupRequests(new HashSet<>())
                 .build();
         ReflectionTestUtils.setField(testStudent, "id", 1L);
-        ReflectionTestUtils.setField(testStudent, "createdAt", LocalDateTime.now());
 
-        // Configurar profesor
-        testTeacher = Teacher.builder()
-                .name("Dr. García")
-                .email("garcia@example.com")
-                .build();
-        ReflectionTestUtils.setField(testTeacher, "id", 1L);
-
-        // Configurar asignatura
-        testSubject = Subject.builder()
-                .name("Programación I")
+        otherStudent = Student.builder()
+                .name("María García")
+                .email("maria@estudiante.edu")
+                .password("$2a$10$encoded_password")
                 .major("Ingeniería Informática")
-                .courseYear(1)
-                .courseGroups(new HashSet<>())
-                .groupRequests(new HashSet<>())
-                .build();
-        ReflectionTestUtils.setField(testSubject, "id", 1L);
-        ReflectionTestUtils.setField(testSubject, "createdAt", LocalDateTime.now());
-
-        // Configurar grupo activo
-        activeGroup = CourseGroup.builder()
-                .subject(testSubject)
-                .teacher(testTeacher)
-                .status(CourseGroupStatus.ACTIVE)
-                .type(CourseGroupType.REGULAR)
-                .price(new BigDecimal("150.00"))
                 .enrollments(new HashSet<>())
-                .groupSessions(new HashSet<>())
                 .build();
-        ReflectionTestUtils.setField(activeGroup, "id", 1L);
+        ReflectionTestUtils.setField(otherStudent, "id", 2L);
 
-        // Configurar sesión
-        GroupSession session = GroupSession.builder()
-                .courseGroup(activeGroup)
-                .dayOfWeek(DayOfWeek.MONDAY)
-                .startTime(LocalTime.of(9, 0))
-                .endTime(LocalTime.of(11, 0))
-                .classroom("A101")
-                .build();
-        activeGroup.getGroupSessions().add(session);
-
-        // Configurar inscripción
-        testEnrollment = Enrollment.builder()
-                .student(testStudent)
-                .courseGroup(activeGroup)
-                .enrollmentDate(LocalDateTime.now())
-                .paymentStatus(PaymentStatus.PENDING)
-                .build();
-        ReflectionTestUtils.setField(testEnrollment, "id", 1L);
-
-        // Configurar solicitud
-        testRequest = GroupRequest.builder()
-                .student(testStudent)
-                .subject(testSubject)
-                .requestDate(LocalDateTime.now())
-                .status(RequestStatus.PENDING)
-                .build();
-        ReflectionTestUtils.setField(testRequest, "id", 1L);
-    }
-
-    @Test
-    @DisplayName("Obtener perfil de estudiante exitosamente")
-    void getStudentProfile_Success() {
-        // Given
-        testStudent.getEnrollments().add(testEnrollment);
-        testStudent.getGroupRequests().add(testRequest);
-
-        StudentDetailDto expectedDto = StudentDetailDto.builder()
+        testStudentDto = StudentDto.builder()
                 .name("Juan Pérez")
-                .email("juan.perez@example.com")
+                .email("juan@estudiante.edu")
                 .major("Ingeniería Informática")
-                .activeEnrollments(1)
-                .pendingPayments(1)
-                .pendingRequests(1)
                 .build();
-        ReflectionTestUtils.setField(expectedDto, "id", 1L);
 
-        when(studentRepository.findByIdWithFullDetails(1L)).thenReturn(Optional.of(testStudent));
-        when(studentMapper.toDetailDto(testStudent)).thenReturn(expectedDto);
+        validCreateDto = CreateStudentDto.builder()
+                .name("Nuevo Estudiante")
+                .email("nuevo@estudiante.edu")
+                .password("password123")
+                .major("Ingeniería Informática")
+                .build();
 
-        // When
-        ApiResponseDto<StudentDetailDto> result = studentService.getStudentProfile(1L);
-
-        // Then
-        assertThat(result).isNotNull();
-        assertThat(result.isSuccess()).isTrue();
-        assertThat(result.getData()).isNotNull();
-        assertThat(result.getData().getName()).isEqualTo("Juan Pérez");
-        assertThat(result.getData().getActiveEnrollments()).isEqualTo(1);
-        assertThat(result.getData().getPendingPayments()).isEqualTo(1);
-        assertThat(result.getData().getPendingRequests()).isEqualTo(1);
-
-        verify(studentMapper).toDetailDto(testStudent);
-    }
-
-    @Test
-    @DisplayName("Obtener perfil falla cuando estudiante no existe")
-    void getStudentProfile_NotFound() {
-        // Given
-        when(studentRepository.findByIdWithFullDetails(999L)).thenReturn(Optional.empty());
-
-        // When/Then
-        assertThatThrownBy(() -> studentService.getStudentProfile(999L))
-                .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessage("Estudiante no encontrado");
-    }
-
-    @Test
-    @DisplayName("Obtener asignaturas disponibles exitosamente")
-    void getAvailableSubjects_Success() {
-        // Given
-        testSubject.getCourseGroups().add(activeGroup);
-        List<Subject> subjects = Collections.singletonList(testSubject);
-
-        SubjectDto expectedDto = SubjectDto.builder()
+        testSubject1 = Subject.builder()
                 .name("Programación I")
                 .major("Ingeniería Informática")
                 .courseYear(1)
                 .build();
-        ReflectionTestUtils.setField(expectedDto, "id", 1L);
+        ReflectionTestUtils.setField(testSubject1, "id", 1L);
 
-        when(studentRepository.findById(1L)).thenReturn(Optional.of(testStudent));
-        when(subjectRepository.findByMajor("Ingeniería Informática")).thenReturn(subjects);
-        when(subjectMapper.toDtoList(subjects)).thenReturn(List.of(expectedDto));
+        testSubject2 = Subject.builder()
+                .name("Base de Datos")
+                .major("Ingeniería Informática")
+                .courseYear(2)
+                .build();
+        ReflectionTestUtils.setField(testSubject2, "id", 2L);
 
-        // When
-        ApiResponseDto<List<SubjectDto>> result = studentService.getAvailableSubjects(1L, null, false);
-
-        // Then
-        assertThat(result).isNotNull();
-        assertThat(result.isSuccess()).isTrue();
-        assertThat(result.getData()).hasSize(1);
-        assertThat(result.getData().getFirst().getName()).isEqualTo("Programación I");
-
-        verify(subjectMapper).toDtoList(subjects);
-    }
-
-    @Test
-    @DisplayName("Obtener solo asignaturas con grupos activos")
-    void getAvailableSubjects_OnlyActive() {
-        // Given
-        testSubject.getCourseGroups().add(activeGroup);
-        List<Subject> activeSubjects = Collections.singletonList(testSubject);
-
-        SubjectDto expectedDto = SubjectDto.builder()
+        testSubjectDto1 = SubjectDto.builder()
                 .name("Programación I")
                 .major("Ingeniería Informática")
                 .courseYear(1)
                 .build();
-        ReflectionTestUtils.setField(expectedDto, "id", 1L);
 
-        when(studentRepository.findById(1L)).thenReturn(Optional.of(testStudent));
-        when(subjectRepository.findSubjectsWithActiveGroups()).thenReturn(activeSubjects);
-        when(subjectMapper.toDtoList(any())).thenReturn(List.of(expectedDto));
-
-        // When
-        ApiResponseDto<List<SubjectDto>> result = studentService.getAvailableSubjects(1L, null, true);
-
-        // Then
-        assertThat(result).isNotNull();
-        assertThat(result.getData()).hasSize(1);
-        assertThat(result.getData().getFirst().getName()).isEqualTo("Programación I");
-        verify(subjectRepository).findSubjectsWithActiveGroups();
-        verify(subjectMapper).toDtoList(any());
-    }
-
-    @Test
-    @DisplayName("Obtener asignatura con grupos activos exitosamente")
-    void getSubjectWithActiveGroups_Success() {
-        // Given
-        testSubject.getCourseGroups().add(activeGroup);
-
-        SubjectWithGroupsDto expectedDto = SubjectWithGroupsDto.builder()
-                .name("Programación I")
+        testSubjectDto2 = SubjectDto.builder()
+                .name("Base de Datos")
                 .major("Ingeniería Informática")
-                .courseYear(1)
-                .activeGroups(1)
-                .totalGroups(1)
-                .hasActiveGroups(true)
-                .availableGroups(new ArrayList<>())
-                .build();
-        ReflectionTestUtils.setField(expectedDto, "id", 1L);
-
-        when(studentRepository.findById(1L)).thenReturn(Optional.of(testStudent));
-        when(subjectRepository.findByIdWithFullDetails(1L)).thenReturn(Optional.of(testSubject));
-        when(subjectMapper.toWithGroupsDto(testSubject)).thenReturn(expectedDto);
-
-        // When
-        ApiResponseDto<SubjectWithGroupsDto> result = studentService.getSubjectWithActiveGroups(1L, 1L);
-
-        // Then
-        assertThat(result).isNotNull();
-        assertThat(result.isSuccess()).isTrue();
-        assertThat(result.getData().getName()).isEqualTo("Programación I");
-        assertThat(result.getData().getActiveGroups()).isEqualTo(1);
-        assertThat(result.getData().isHasActiveGroups()).isTrue();
-
-        verify(subjectMapper).toWithGroupsDto(testSubject);
-    }
-
-    @Test
-    @DisplayName("Obtener asignatura falla si no es de la carrera del estudiante")
-    void getSubjectWithActiveGroups_WrongMajor() {
-        // Given
-        testSubject.setMajor("Ingeniería Civil");
-        when(studentRepository.findById(1L)).thenReturn(Optional.of(testStudent));
-        when(subjectRepository.findByIdWithFullDetails(1L)).thenReturn(Optional.of(testSubject));
-
-        // When/Then
-        assertThatThrownBy(() -> studentService.getSubjectWithActiveGroups(1L, 1L))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage("Esta asignatura no pertenece a tu carrera");
-    }
-
-    @Test
-    @DisplayName("Crear solicitud de grupo exitosamente")
-    void createGroupRequest_Success() {
-        // Given
-        CreateGroupRequestDto requestDto = CreateGroupRequestDto.builder()
-                .subjectId(1L)
-                .comments("Necesito este grupo")
+                .courseYear(2)
                 .build();
 
-        when(studentRepository.findById(1L)).thenReturn(Optional.of(testStudent));
-        when(subjectRepository.findById(1L)).thenReturn(Optional.of(testSubject));
-        when(groupRequestRepository.existsByStudentIdAndSubjectIdAndStatus(1L, 1L, RequestStatus.PENDING))
-                .thenReturn(false);
-        when(groupRequestRepository.save(any(GroupRequest.class))).thenAnswer(invocation -> {
-            GroupRequest saved = invocation.getArgument(0);
-            ReflectionTestUtils.setField(saved, "id", 1L);
-            return saved;
-        });
-        when(groupRequestRepository.countBySubjectIdAndStatus(1L, RequestStatus.PENDING)).thenReturn(5L);
-
-        // When
-        ApiResponseDto<GroupRequestResponseDto> result = studentService.createGroupRequest(1L, requestDto);
-
-        // Then
-        assertThat(result).isNotNull();
-        assertThat(result.isSuccess()).isTrue();
-        assertThat(result.getData().getRequestId()).isEqualTo(1L);
-        assertThat(result.getData().getTotalRequests()).isEqualTo(5);
-        verify(groupRequestRepository).save(any(GroupRequest.class));
-    }
-
-    @Test
-    @DisplayName("Crear solicitud falla si ya existe una pendiente")
-    void createGroupRequest_DuplicateRequest() {
-        // Given
-        CreateGroupRequestDto requestDto = CreateGroupRequestDto.builder()
-                .subjectId(1L)
-                .build();
-
-        when(studentRepository.findById(1L)).thenReturn(Optional.of(testStudent));
-        when(subjectRepository.findById(1L)).thenReturn(Optional.of(testSubject));
-        when(groupRequestRepository.existsByStudentIdAndSubjectIdAndStatus(1L, 1L, RequestStatus.PENDING))
-                .thenReturn(true);
-
-        // When/Then
-        assertThatThrownBy(() -> studentService.createGroupRequest(1L, requestDto))
-                .isInstanceOf(DuplicateRequestException.class)
-                .hasMessage("Ya tienes una solicitud pendiente para esta asignatura");
-    }
-
-    @Test
-    @DisplayName("Crear solicitud falla si hay grupos activos")
-    void createGroupRequest_ActiveGroupsExist() {
-        // Given
-        CreateGroupRequestDto requestDto = CreateGroupRequestDto.builder()
-                .subjectId(1L)
-                .build();
-
-        testSubject.getCourseGroups().add(activeGroup);
-
-        when(studentRepository.findById(1L)).thenReturn(Optional.of(testStudent));
-        when(subjectRepository.findById(1L)).thenReturn(Optional.of(testSubject));
-        when(groupRequestRepository.existsByStudentIdAndSubjectIdAndStatus(1L, 1L, RequestStatus.PENDING))
-                .thenReturn(false);
-
-        // When/Then
-        assertThatThrownBy(() -> studentService.createGroupRequest(1L, requestDto))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage("Esta asignatura ya tiene grupos activos disponibles");
-    }
-
-    @Test
-    @DisplayName("Obtener inscripciones del estudiante")
-    void getStudentEnrollments_Success() {
-        // Given
-        List<Enrollment> enrollments = Collections.singletonList(testEnrollment);
-
-        EnrollmentSummaryDto summaryDto = EnrollmentSummaryDto.builder()
+        testEnrollmentSummaryDto = EnrollmentSummaryDto.builder()
                 .enrollmentId(1L)
                 .courseGroupId(1L)
                 .subjectName("Programación I")
                 .teacherName("Dr. García")
                 .groupType("REGULAR")
                 .groupStatus("ACTIVE")
-                .enrollmentDate(testEnrollment.getEnrollmentDate())
                 .paymentStatus(PaymentStatus.PENDING)
                 .build();
 
-        when(enrollmentRepository.findByStudentId(1L)).thenReturn(enrollments);
-        when(enrollmentMapper.toSummaryDtoList(enrollments)).thenReturn(Collections.singletonList(summaryDto));
+        validChangePasswordDto = ChangePasswordDto.builder()
+                .currentPassword("currentPassword123")
+                .newPassword("newPassword123")
+                .confirmPassword("newPassword123")
+                .build();
+    }
+
+    // ========== TESTS DE PERFIL DE ESTUDIANTE ==========
+
+    @Test
+    @DisplayName("Debe obtener mi perfil como estudiante")
+    void shouldGetMyProfile() {
+        // Given
+        when(sessionUtils.getCurrentUserId()).thenReturn(1L);
+        when(sessionUtils.isStudent()).thenReturn(true);
+        when(studentRepository.findById(1L)).thenReturn(Optional.of(testStudent));
+        when(studentMapper.toDto(testStudent)).thenReturn(testStudentDto);
 
         // When
-        ApiResponseDto<List<EnrollmentSummaryDto>> result = studentService.getStudentEnrollments(1L, false);
+        StudentDto result = studentService.getMyProfile();
 
         // Then
-        assertThat(result).isNotNull();
-        assertThat(result.isSuccess()).isTrue();
-        assertThat(result.getData()).hasSize(1);
-        assertThat(result.getData().getFirst().getSubjectName()).isEqualTo("Programación I");
-        assertThat(result.getData().getFirst().getPaymentStatus()).isEqualTo(PaymentStatus.PENDING);
-
-        verify(enrollmentMapper).toSummaryDtoList(enrollments);
+        assertThat(result).isEqualTo(testStudentDto);
+        verify(studentRepository).findById(1L);
     }
 
     @Test
-    @DisplayName("Obtener solicitudes del estudiante")
-    void getStudentGroupRequests_Success() {
+    @DisplayName("Debe fallar al obtener perfil si no es estudiante")
+    void shouldFailGetMyProfileIfNotStudent() {
         // Given
-        List<GroupRequest> requests = Collections.singletonList(testRequest);
+        when(sessionUtils.isStudent()).thenReturn(false);
 
-        GroupRequestSummaryDto summaryDto = GroupRequestSummaryDto.builder()
-                .requestId(1L)
-                .subjectId(1L)
-                .subjectName("Programación I")
-                .requestDate(testRequest.getRequestDate())
-                .status(RequestStatus.PENDING)
+        // When/Then
+        assertThatThrownBy(() -> studentService.getMyProfile())
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Esta operación es solo para estudiantes");
+    }
+
+    @Test
+    @DisplayName("Debe obtener estudiante por ID como el mismo estudiante")
+    void shouldGetStudentByIdAsSelf() {
+        // Given
+        when(sessionUtils.isStudent()).thenReturn(true);
+        when(sessionUtils.getCurrentUserId()).thenReturn(1L);
+        when(studentRepository.findById(1L)).thenReturn(Optional.of(testStudent));
+        when(studentMapper.toDto(testStudent)).thenReturn(testStudentDto);
+
+        // When
+        StudentDto result = studentService.getStudentById(1L);
+
+        // Then
+        assertThat(result).isEqualTo(testStudentDto);
+    }
+
+    @Test
+    @DisplayName("Debe fallar al obtener otro estudiante")
+    void shouldFailGetOtherStudentProfile() {
+        // Given
+        when(sessionUtils.isStudent()).thenReturn(true);
+        when(sessionUtils.getCurrentUserId()).thenReturn(1L);
+
+        // When/Then
+        assertThatThrownBy(() -> studentService.getStudentById(2L))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("No puede acceder a información de otros estudiantes");
+    }
+
+    @Test
+    @DisplayName("Debe obtener cualquier estudiante como admin")
+    void shouldGetAnyStudentAsAdmin() {
+        // Given
+        when(sessionUtils.isStudent()).thenReturn(false);
+        when(sessionUtils.isAdmin()).thenReturn(true);
+        when(studentRepository.findById(2L)).thenReturn(Optional.of(otherStudent));
+        when(studentMapper.toDto(otherStudent)).thenReturn(testStudentDto);
+
+        // When
+        StudentDto result = studentService.getStudentById(2L);
+
+        // Then
+        assertThat(result).isEqualTo(testStudentDto);
+    }
+
+    @Test
+    @DisplayName("Debe actualizar perfil propio")
+    void shouldUpdateOwnProfile() {
+        // Given
+        StudentDto updateDto = StudentDto.builder()
+                .name("Juan Pérez Actualizado")
+                .major("Ingeniería de Software")
                 .build();
 
-        when(groupRequestRepository.findByStudentId(1L)).thenReturn(requests);
-        when(groupRequestMapper.toSummaryDtoList(requests)).thenReturn(Collections.singletonList(summaryDto));
+        when(sessionUtils.isStudent()).thenReturn(true);
+        when(sessionUtils.getCurrentUserId()).thenReturn(1L);
+        when(studentRepository.findById(1L)).thenReturn(Optional.of(testStudent));
+        when(studentRepository.save(any(Student.class))).thenReturn(testStudent);
+        when(studentMapper.toDto(testStudent)).thenReturn(testStudentDto);
 
         // When
-        ApiResponseDto<List<GroupRequestSummaryDto>> result = studentService.getStudentGroupRequests(1L, null);
+        StudentDto result = studentService.updateProfile(1L, updateDto);
 
         // Then
-        assertThat(result).isNotNull();
+        assertThat(result).isEqualTo(testStudentDto);
+        verify(studentMapper).updateBasicInfo(testStudent, updateDto);
+        verify(studentRepository).save(testStudent);
+    }
+
+    @Test
+    @DisplayName("Debe cambiar contraseña exitosamente")
+    void shouldChangePasswordSuccessfully() {
+        // Given
+        when(sessionUtils.isStudent()).thenReturn(true);
+        when(sessionUtils.getCurrentUserId()).thenReturn(1L);
+        when(studentRepository.findById(1L)).thenReturn(Optional.of(testStudent));
+        when(studentMapper.passwordMatches("currentPassword123", testStudent.getPassword()))
+                .thenReturn(true);
+        when(studentMapper.encodePassword("newPassword123")).thenReturn("$2a$10$new_encoded");
+        when(studentRepository.save(any(Student.class))).thenReturn(testStudent);
+
+        // When
+        ApiResponseDto<Void> result = studentService.changePassword(1L, validChangePasswordDto);
+
+        // Then
         assertThat(result.isSuccess()).isTrue();
-        assertThat(result.getData()).hasSize(1);
-        assertThat(result.getData().getFirst().getSubjectName()).isEqualTo("Programación I");
-        assertThat(result.getData().getFirst().getStatus()).isEqualTo(RequestStatus.PENDING);
-
-        verify(groupRequestMapper).toSummaryDtoList(requests);
+        assertThat(result.getMessage()).isEqualTo("Contraseña actualizada exitosamente");
+        verify(studentRepository).save(testStudent);
     }
 
     @Test
-    @DisplayName("Verificar si puede inscribirse en grupo - puede")
-    void canEnrollInGroup_True() {
+    @DisplayName("Debe fallar cambio de contraseña si no coinciden")
+    void shouldFailChangePasswordIfMismatch() {
         // Given
-        activeGroup.setMaxCapacity(30);
-        // Simular que ya hay 10 inscripciones
-        for (int i = 0; i < 10; i++) {
-            Enrollment enrollment = Enrollment.builder()
-                    .student(Student.builder().build())
-                    .courseGroup(activeGroup)
-                    .build();
-            activeGroup.getEnrollments().add(enrollment);
-        }
-        when(enrollmentRepository.existsByStudentIdAndCourseGroupId(1L, 1L)).thenReturn(false);
-        when(courseGroupRepository.findById(1L)).thenReturn(Optional.of(activeGroup));
-        // When
-        boolean result = studentService.canEnrollInGroup(1L, 1L);
-        // Then
-        assertThat(result).isTrue();
-    }
+        validChangePasswordDto.setConfirmPassword("differentPassword");
+        when(sessionUtils.isStudent()).thenReturn(true);
+        when(sessionUtils.getCurrentUserId()).thenReturn(1L);
 
-
-
-    @Test
-    @DisplayName("Verificar si puede inscribirse en grupo - ya inscrito")
-    void canEnrollInGroup_AlreadyEnrolled() {
-        // Given
-        when(enrollmentRepository.existsByStudentIdAndCourseGroupId(1L, 1L)).thenReturn(true);
-
-        // When
-        boolean result = studentService.canEnrollInGroup(1L, 1L);
-
-        // Then
-        assertThat(result).isFalse();
+        // When/Then
+        assertThatThrownBy(() -> studentService.changePassword(1L, validChangePasswordDto))
+                .isInstanceOf(PasswordMismatchException.class)
+                .hasMessage("Las contraseñas nuevas no coinciden");
     }
 
     @Test
-    @DisplayName("Verificar si puede inscribirse en grupo - grupo lleno")
-    void canEnrollInGroup_GroupFull() {
+    @DisplayName("Debe fallar cambio de contraseña si la actual es incorrecta")
+    void shouldFailChangePasswordIfCurrentIncorrect() {
         // Given
-        activeGroup.setMaxCapacity(30);
-        // Simular que el grupo está lleno
-        for (int i = 0; i < 30; i++) {
-            Enrollment enrollment = Enrollment.builder()
-                    .student(Student.builder().build())
-                    .courseGroup(activeGroup)
-                    .build();
-            activeGroup.getEnrollments().add(enrollment);
-        }
+        when(sessionUtils.isStudent()).thenReturn(true);
+        when(sessionUtils.getCurrentUserId()).thenReturn(1L);
+        when(studentRepository.findById(1L)).thenReturn(Optional.of(testStudent));
+        when(studentMapper.passwordMatches("currentPassword123", testStudent.getPassword()))
+                .thenReturn(false);
 
-        when(enrollmentRepository.existsByStudentIdAndCourseGroupId(1L, 1L)).thenReturn(false);
-        when(courseGroupRepository.findById(1L)).thenReturn(Optional.of(activeGroup));
+        // When/Then
+        assertThatThrownBy(() -> studentService.changePassword(1L, validChangePasswordDto))
+                .isInstanceOf(InvalidCredentialsException.class)
+                .hasMessage("La contraseña actual es incorrecta");
+    }
+
+    // ========== TESTS DE CONSULTAS ACADÉMICAS ==========
+
+    @Test
+    @DisplayName("Debe obtener asignaturas de mi carrera")
+    void shouldGetMyMajorSubjects() {
+        // Given
+        List<Subject> subjects = Arrays.asList(testSubject1, testSubject2);
+        List<SubjectDto> expectedDtos = Arrays.asList(testSubjectDto1, testSubjectDto2);
+
+        when(sessionUtils.getCurrentUserId()).thenReturn(1L);
+        when(sessionUtils.isStudent()).thenReturn(true);
+        when(studentRepository.findById(1L)).thenReturn(Optional.of(testStudent));
+        when(subjectRepository.findByMajor("Ingeniería Informática")).thenReturn(subjects);
+        when(subjectMapper.toDtoList(subjects)).thenReturn(expectedDtos);
 
         // When
-        boolean result = studentService.canEnrollInGroup(1L, 1L);
+        List<SubjectDto> result = studentService.getMyMajorSubjects();
 
         // Then
-        assertThat(result).isFalse();
+        assertThat(result).hasSize(2);
+        assertThat(result).containsExactly(testSubjectDto1, testSubjectDto2);
     }
 
     @Test
-    @DisplayName("Obtener información de capacidad del grupo")
-    void getGroupCapacity_Success() {
+    @DisplayName("Debe obtener asignaturas de mi carrera por año")
+    void shouldGetMyMajorSubjectsByYear() {
         // Given
-        activeGroup.setMaxCapacity(30);
-        // Agregar algunas inscripciones
-        for (int i = 0; i < 20; i++) {
-            Enrollment enrollment = Enrollment.builder()
-                    .student(Student.builder().build())
-                    .courseGroup(activeGroup)
-                    .build();
-            activeGroup.getEnrollments().add(enrollment);
-        }
+        List<Subject> allSubjects = Arrays.asList(testSubject1, testSubject2);
+        List<SubjectDto> expectedDtos = Arrays.asList(testSubjectDto1);
 
-        when(courseGroupRepository.findById(1L)).thenReturn(Optional.of(activeGroup));
+        when(sessionUtils.getCurrentUserId()).thenReturn(1L);
+        when(sessionUtils.isStudent()).thenReturn(true);
+        when(studentRepository.findById(1L)).thenReturn(Optional.of(testStudent));
+        when(subjectRepository.findByMajor("Ingeniería Informática")).thenReturn(allSubjects);
+        when(subjectMapper.toDtoList(any())).thenReturn(expectedDtos);
 
         // When
-        ApiResponseDto<StudentService.GroupCapacityDto> result = studentService.getGroupCapacity(1L);
+        List<SubjectDto> result = studentService.getMyMajorSubjectsByYear(1);
 
         // Then
-        assertThat(result).isNotNull();
-        assertThat(result.isSuccess()).isTrue();
-        assertThat(result.getData()).isNotNull();
-        assertThat(result.getData().getGroupId()).isEqualTo(1L);
-        assertThat(result.getData().getMaxCapacity()).isEqualTo(30);
-        assertThat(result.getData().getCurrentEnrollments()).isEqualTo(20);
-        assertThat(result.getData().getAvailableSpots()).isEqualTo(10);
-        assertThat(result.getData().isFull()).isFalse();
+        assertThat(result).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Debe validar año de curso en consulta")
+    void shouldValidateCourseYearInQuery() {
+        // Given
+        when(sessionUtils.isStudent()).thenReturn(true);
+
+        // When/Then
+        assertThatThrownBy(() -> studentService.getMyMajorSubjectsByYear(0))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("El año de curso debe estar entre 1 y 6");
+
+        assertThatThrownBy(() -> studentService.getMyMajorSubjectsByYear(7))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("El año de curso debe estar entre 1 y 6");
+    }
+
+    @Test
+    @DisplayName("Debe obtener mis inscripciones")
+    void shouldGetMyEnrollments() {
+        // Given
+        List<EnrollmentSummaryDto> expectedEnrollments = Arrays.asList(testEnrollmentSummaryDto);
+
+        when(sessionUtils.getCurrentUserId()).thenReturn(1L);
+        when(sessionUtils.isStudent()).thenReturn(true);
+        when(enrollmentService.getStudentEnrollments(1L)).thenReturn(expectedEnrollments);
+
+        // When
+        List<EnrollmentSummaryDto> result = studentService.getMyEnrollments();
+
+        // Then
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0)).isEqualTo(testEnrollmentSummaryDto);
+    }
+
+    @Test
+    @DisplayName("Debe obtener mis estadísticas")
+    void shouldGetMyStats() {
+        // Given
+        // Configurar inscripciones del estudiante
+        CourseGroup activeGroup = CourseGroup.builder()
+                .subject(testSubject1)
+                .status(CourseGroupStatus.ACTIVE)
+                .build();
+        Enrollment enrollment = Enrollment.builder()
+                .courseGroup(activeGroup)
+                .paymentStatus(PaymentStatus.PENDING)
+                .build();
+        testStudent.getEnrollments().add(enrollment);
+
+        EnrollmentStatsDto enrollmentStats = EnrollmentStatsDto.builder()
+                .studentId(1L)
+                .totalEnrollments(1)
+                .activeEnrollments(1)
+                .pendingPayments(1)
+                .build();
+
+        List<Subject> majorSubjects = Arrays.asList(testSubject1, testSubject2);
+
+        when(sessionUtils.getCurrentUserId()).thenReturn(1L);
+        when(sessionUtils.isStudent()).thenReturn(true);
+        when(studentRepository.findById(1L)).thenReturn(Optional.of(testStudent));
+        when(enrollmentService.getStudentEnrollmentStats(1L)).thenReturn(enrollmentStats);
+        when(subjectRepository.findByMajor("Ingeniería Informática")).thenReturn(majorSubjects);
+
+        // When
+        StudentStatsDto stats = studentService.getMyStats();
+
+        // Then
+        assertThat(stats.getStudentId()).isEqualTo(1L);
+        assertThat(stats.getStudentName()).isEqualTo("Juan Pérez");
+        assertThat(stats.getMajor()).isEqualTo("Ingeniería Informática");
+        assertThat(stats.getTotalEnrollments()).isEqualTo(1);
+        assertThat(stats.getActiveEnrollments()).isEqualTo(1);
+        assertThat(stats.getPendingPayments()).isEqualTo(1);
+        assertThat(stats.getTotalSubjectsInMajor()).isEqualTo(2);
+        assertThat(stats.getEnrolledSubjects()).isEqualTo(1);
+        assertThat(stats.getRemainingSubjects()).isEqualTo(1);
+    }
+
+    // ========== TESTS DE OPERACIONES ADMINISTRATIVAS ==========
+
+    @Test
+    @DisplayName("Debe obtener todos los estudiantes como admin")
+    void shouldGetAllStudentsAsAdmin() {
+        // Given
+        Pageable pageable = PageRequest.of(0, 10);
+        List<Student> students = Arrays.asList(testStudent, otherStudent);
+        Page<Student> studentPage = new PageImpl<>(students, pageable, 2);
+
+        when(sessionUtils.isAdmin()).thenReturn(true);
+        when(studentRepository.findAll(pageable)).thenReturn(studentPage);
+        when(studentMapper.toDto(any(Student.class))).thenReturn(testStudentDto);
+
+        // When
+        Page<StudentDto> result = studentService.getAllStudents(pageable);
+
+        // Then
+        assertThat(result.getContent()).hasSize(2);
+        assertThat(result.getTotalElements()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("Debe crear estudiante como admin")
+    void shouldCreateStudentAsAdmin() {
+        // Given
+        when(sessionUtils.isAdmin()).thenReturn(true);
+        when(studentRepository.existsByEmail(validCreateDto.getEmail())).thenReturn(false);
+        when(teacherRepository.existsByEmail(validCreateDto.getEmail())).thenReturn(false);
+        when(studentMapper.toEntity(validCreateDto)).thenReturn(testStudent);
+        when(studentRepository.save(any(Student.class))).thenReturn(testStudent);
+        when(studentMapper.toDto(testStudent)).thenReturn(testStudentDto);
+
+        // When
+        StudentDto result = studentService.createStudent(validCreateDto);
+
+        // Then
+        assertThat(result).isEqualTo(testStudentDto);
+        verify(studentRepository).save(any(Student.class));
+    }
+
+    @Test
+    @DisplayName("Debe fallar al crear estudiante con email existente")
+    void shouldFailCreateStudentWithExistingEmail() {
+        // Given
+        when(sessionUtils.isAdmin()).thenReturn(true);
+        when(studentRepository.existsByEmail(validCreateDto.getEmail())).thenReturn(true);
+
+        // When/Then
+        assertThatThrownBy(() -> studentService.createStudent(validCreateDto))
+                .isInstanceOf(EmailAlreadyExistsException.class)
+                .hasMessage("El email ya está registrado");
+    }
+
+    @Test
+    @DisplayName("Debe actualizar estudiante como admin")
+    void shouldUpdateStudentAsAdmin() {
+        // Given
+        StudentDto updateDto = StudentDto.builder()
+                .name("Nombre Actualizado")
+                .major("Nueva Carrera")
+                .build();
+
+        when(sessionUtils.isAdmin()).thenReturn(true);
+        when(studentRepository.findById(1L)).thenReturn(Optional.of(testStudent));
+        when(studentRepository.save(any(Student.class))).thenReturn(testStudent);
+        when(studentMapper.toDto(testStudent)).thenReturn(testStudentDto);
+
+        // When
+        StudentDto result = studentService.updateStudent(1L, updateDto);
+
+        // Then
+        assertThat(result).isEqualTo(testStudentDto);
+        verify(studentMapper).updateBasicInfo(testStudent, updateDto);
+        verify(studentRepository).save(testStudent);
+    }
+
+    @Test
+    @DisplayName("Debe eliminar estudiante sin inscripciones activas")
+    void shouldDeleteStudentWithoutActiveEnrollments() {
+        // Given
+        when(sessionUtils.isAdmin()).thenReturn(true);
+        when(studentRepository.findById(1L)).thenReturn(Optional.of(testStudent));
+
+        // When
+        studentService.deleteStudent(1L);
+
+        // Then
+        verify(studentRepository).delete(testStudent);
+    }
+
+    @Test
+    @DisplayName("Debe fallar al eliminar estudiante con inscripciones activas")
+    void shouldFailDeleteStudentWithActiveEnrollments() {
+        // Given
+        CourseGroup activeGroup = CourseGroup.builder()
+                .status(CourseGroupStatus.ACTIVE)
+                .build();
+        Enrollment activeEnrollment = Enrollment.builder()
+                .courseGroup(activeGroup)
+                .build();
+        testStudent.getEnrollments().add(activeEnrollment);
+
+        when(sessionUtils.isAdmin()).thenReturn(true);
+        when(studentRepository.findById(1L)).thenReturn(Optional.of(testStudent));
+
+        // When/Then
+        assertThatThrownBy(() -> studentService.deleteStudent(1L))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("No se puede eliminar el estudiante porque tiene inscripciones activas");
+    }
+
+    @Test
+    @DisplayName("Debe buscar estudiantes por carrera")
+    void shouldGetStudentsByMajor() {
+        // Given
+        List<Student> allStudents = Arrays.asList(testStudent, otherStudent);
+        when(sessionUtils.isAdmin()).thenReturn(true);
+        when(studentRepository.findAll()).thenReturn(allStudents);
+        when(studentMapper.toDto(any(Student.class))).thenReturn(testStudentDto);
+
+        // When
+        List<StudentDto> result = studentService.getStudentsByMajor("Ingeniería Informática");
+
+        // Then
+        assertThat(result).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("Debe obtener estadísticas administrativas")
+    void shouldGetAdminStudentStats() {
+        // Given
+        // Configurar estudiantes con inscripciones
+        CourseGroup activeGroup = CourseGroup.builder()
+                .status(CourseGroupStatus.ACTIVE)
+                .build();
+        Enrollment enrollment1 = Enrollment.builder()
+                .courseGroup(activeGroup)
+                .paymentStatus(PaymentStatus.PENDING)
+                .build();
+        testStudent.getEnrollments().add(enrollment1);
+
+        List<Student> allStudents = Arrays.asList(testStudent, otherStudent);
+
+        when(sessionUtils.isAdmin()).thenReturn(true);
+        when(studentRepository.findAll()).thenReturn(allStudents);
+
+        // When
+        AdminStudentStatsDto stats = studentService.getAdminStudentStats();
+
+        // Then
+        assertThat(stats.getTotalStudents()).isEqualTo(2);
+        assertThat(stats.getStudentsByMajor()).containsEntry("Ingeniería Informática", 2L);
+        assertThat(stats.getTotalActiveEnrollments()).isEqualTo(1);
+        assertThat(stats.getTotalPendingPayments()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Debe fallar operaciones admin sin permisos")
+    void shouldFailAdminOperationsWithoutPermission() {
+        // Given
+        when(sessionUtils.isAdmin()).thenReturn(false);
+        when(sessionUtils.getCurrentUserEmail()).thenReturn("student@test.com");
+
+        // When/Then
+        assertThatThrownBy(() -> studentService.getAllStudents(PageRequest.of(0, 10)))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("No tiene permisos para realizar esta operación");
+
+        assertThatThrownBy(() -> studentService.createStudent(validCreateDto))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("No tiene permisos para realizar esta operación");
+
+        assertThatThrownBy(() -> studentService.deleteStudent(1L))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("No tiene permisos para realizar esta operación");
+    }
+
+    @Test
+    @DisplayName("Debe manejar error de integridad al actualizar perfil")
+    void shouldHandleDataIntegrityViolationOnUpdate() {
+        // Given
+        StudentDto updateDto = StudentDto.builder()
+                .name("Nombre Actualizado")
+                .build();
+
+        when(sessionUtils.isStudent()).thenReturn(true);
+        when(sessionUtils.getCurrentUserId()).thenReturn(1L);
+        when(studentRepository.findById(1L)).thenReturn(Optional.of(testStudent));
+        when(studentRepository.save(any(Student.class)))
+                .thenThrow(new DataIntegrityViolationException("Constraint violation"));
+
+        // When/Then
+        assertThatThrownBy(() -> studentService.updateProfile(1L, updateDto))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Error al actualizar el perfil");
+    }
+
+    @Test
+    @DisplayName("Debe manejar estudiante no encontrado")
+    void shouldHandleStudentNotFound() {
+        // Given
+        when(sessionUtils.isStudent()).thenReturn(true);
+        when(sessionUtils.getCurrentUserId()).thenReturn(1L);
+        when(studentRepository.findById(1L)).thenReturn(Optional.empty());
+
+        // When/Then
+        assertThatThrownBy(() -> studentService.getStudentById(1L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Estudiante no encontrado con ID: 1");
     }
 }

@@ -7,124 +7,117 @@ import com.acainfo.mvp.model.Subject;
 import com.acainfo.mvp.model.enums.CourseGroupStatus;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Mapper para convertir entre entidades Subject y sus DTOs.
+ * Mapper para conversiones entre Subject entity y sus DTOs.
+ * Maneja la transformación de asignaturas y sus grupos asociados.
  */
 @Component
 public class SubjectMapper {
 
     /**
-     * Convierte una entidad Subject a SubjectDto básico.
-     *
-     * @param subject entidad subject
-     * @return SubjectDto
+     * Convierte Subject entity a SubjectDto (información básica).
      */
     public SubjectDto toDto(Subject subject) {
         if (subject == null) {
             return null;
         }
 
-        SubjectDto dto = SubjectDto.builder()
+        return SubjectDto.builder()
                 .name(subject.getName())
                 .major(subject.getMajor())
                 .courseYear(subject.getCourseYear())
                 .build();
-
-        dto.setId(subject.getId());
-        dto.setCreatedAt(subject.getCreatedAt());
-        dto.setUpdatedAt(subject.getUpdatedAt());
-
-        return dto;
     }
 
     /**
-     * Convierte una lista de entidades Subject a lista de SubjectDto.
-     *
-     * @param subjects lista de entidades
-     * @return lista de DTOs
-     */
-    public List<SubjectDto> toDtoList(List<Subject> subjects) {
-        return subjects.stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Convierte una entidad Subject a SubjectWithGroupsDto incluyendo grupos.
-     *
-     * @param subject entidad subject con grupos cargados
-     * @return SubjectWithGroupsDto
+     * Convierte Subject a SubjectWithGroupsDto incluyendo grupos activos.
+     * Usado para mostrar asignaturas con opciones de inscripción.
      */
     public SubjectWithGroupsDto toWithGroupsDto(Subject subject) {
         if (subject == null) {
             return null;
         }
 
-        // Filtrar grupos activos
+        // Filtrar solo grupos activos
         List<CourseGroup> activeGroups = subject.getCourseGroups().stream()
-                .filter(g -> g.getStatus() == CourseGroupStatus.ACTIVE)
-                .toList();
+                .filter(group -> CourseGroupStatus.ACTIVE.equals(group.getStatus()))
+                .collect(Collectors.toList());
 
-        SubjectWithGroupsDto dto = SubjectWithGroupsDto.builder()
+        // Convertir grupos a resumen
+        List<CourseGroupSummaryDto> groupSummaries = activeGroups.stream()
+                .map(this::toCourseGroupSummary)
+                .collect(Collectors.toList());
+
+        return SubjectWithGroupsDto.builder()
                 .name(subject.getName())
                 .major(subject.getMajor())
                 .courseYear(subject.getCourseYear())
                 .activeGroups(activeGroups.size())
                 .totalGroups(subject.getCourseGroups().size())
                 .hasActiveGroups(!activeGroups.isEmpty())
-                .availableGroups(activeGroups.stream()
-                        .map(this::toCourseGroupSummary)
-                        .collect(Collectors.toList()))
+                .availableGroups(groupSummaries)
                 .build();
-
-        dto.setId(subject.getId());
-        dto.setCreatedAt(subject.getCreatedAt());
-        dto.setUpdatedAt(subject.getUpdatedAt());
-
-        return dto;
     }
 
     /**
-     * Convierte un CourseGroup a CourseGroupSummaryDto.
-     *
-     * @param group entidad CourseGroup
-     * @return CourseGroupSummaryDto
+     * Crea nuevo Subject desde CreateSubjectDto.
+     * Usado por admin para crear asignaturas.
      */
-    public CourseGroupSummaryDto toCourseGroupSummary(CourseGroup group) {
+    public Subject toEntity(CreateSubjectDto dto) {
+        if (dto == null) {
+            return null;
+        }
+
+        return Subject.builder()
+                .name(dto.getName())
+                .major(dto.getMajor())
+                .courseYear(dto.getCourseYear())
+                .build();
+    }
+
+    /**
+     * Convierte CourseGroup a CourseGroupSummaryDto.
+     * Incluye información resumida del grupo para vista de asignatura.
+     */
+    private CourseGroupSummaryDto toCourseGroupSummary(CourseGroup group) {
         if (group == null) {
             return null;
         }
 
+        // Convertir sesiones del grupo
+        List<SessionTimeDto> sessions = group.getGroupSessions().stream()
+                .map(this::toSessionTimeDto)
+                .collect(Collectors.toList());
+
         return CourseGroupSummaryDto.builder()
                 .groupId(group.getId())
-                .teacherName(group.getTeacher() != null ? group.getTeacher().getName() : "Por asignar")
-                .groupType(group.getType().name())
-                .groupStatus(group.getStatus().name())
+                .teacherName(group.getTeacher() != null
+                        ? group.getTeacher().getName()
+                        : "Sin asignar")
+                .groupType(group.getType().toString())
+                .groupStatus(group.getStatus().toString())
                 .price(group.getPrice())
                 .enrolledStudents(group.getEnrollments().size())
-                .maxCapacity(group.getMaxCapacity()) // Usando el campo real
-                .sessions(group.getGroupSessions().stream()
-                        .map(this::toSessionTimeDto)
-                        .collect(Collectors.toList()))
+                .maxCapacity(group.getMaxCapacity())
+                .sessions(sessions)
                 .build();
     }
 
     /**
-     * Convierte una GroupSession a SessionTimeDto.
-     *
-     * @param session entidad GroupSession
-     * @return SessionTimeDto
+     * Convierte GroupSession a SessionTimeDto.
+     * Información básica de horario para cada sesión.
      */
-    public SessionTimeDto toSessionTimeDto(GroupSession session) {
+    private SessionTimeDto toSessionTimeDto(GroupSession session) {
         if (session == null) {
             return null;
         }
 
         return SessionTimeDto.builder()
-                .dayOfWeek(session.getDayOfWeek().name())
+                .dayOfWeek(session.getDayOfWeek().toString())
                 .startTime(session.getStartTime())
                 .endTime(session.getEndTime())
                 .classroom(session.getClassroom())
@@ -132,38 +125,50 @@ public class SubjectMapper {
     }
 
     /**
-     * Crea una nueva entidad Subject desde CreateSubjectDto.
-     *
-     * @param createDto DTO de creación
-     * @return nueva entidad Subject
+     * Actualiza campos de Subject desde UpdateSubjectDto.
+     * Usado por admin para modificar asignaturas.
      */
-    public Subject toEntity(CreateSubjectDto createDto) {
-        if (createDto == null) {
-            return null;
+    public void updateFromDto(Subject subject, UpdateSubjectDto dto) {
+        if (subject == null || dto == null) {
+            return;
         }
 
-        return Subject.builder()
-                .name(createDto.getName())
-                .major(createDto.getMajor())
-                .courseYear(createDto.getCourseYear())
-                .build();
+        if (dto.getName() != null) {
+            subject.setName(dto.getName());
+        }
+        if (dto.getMajor() != null) {
+            subject.setMajor(dto.getMajor());
+        }
+        if (dto.getCourseYear() != null) {
+            subject.setCourseYear(dto.getCourseYear());
+        }
     }
 
     /**
-     * Actualiza una entidad Subject con datos de UpdateSubjectDto.
-     *
-     * @param subject entidad a actualizar
-     * @param updateDto datos de actualización
+     * Convierte lista de Subjects a lista de SubjectDtos.
+     * Útil para endpoints que devuelven múltiples asignaturas.
      */
-    public void updateEntityFromDto(Subject subject, UpdateSubjectDto updateDto) {
-        if (updateDto.getName() != null) {
-            subject.setName(updateDto.getName());
+    public List<SubjectDto> toDtoList(List<Subject> subjects) {
+        if (subjects == null) {
+            return new ArrayList<>();
         }
-        if (updateDto.getMajor() != null) {
-            subject.setMajor(updateDto.getMajor());
+
+        return subjects.stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Convierte lista de Subjects a lista de SubjectWithGroupsDtos.
+     * Útil para mostrar asignaturas con sus grupos disponibles.
+     */
+    public List<SubjectWithGroupsDto> toWithGroupsDtoList(List<Subject> subjects) {
+        if (subjects == null) {
+            return new ArrayList<>();
         }
-        if (updateDto.getCourseYear() != null) {
-            subject.setCourseYear(updateDto.getCourseYear());
-        }
+
+        return subjects.stream()
+                .map(this::toWithGroupsDto)
+                .collect(Collectors.toList());
     }
 }

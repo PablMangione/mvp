@@ -27,9 +27,6 @@ public class GroupRequest extends BaseEntity {
     @JoinColumn(name = "subject_id", nullable = false)
     private Subject subject;
 
-    @Column(name = "request_date", nullable = false, updatable = false)
-    private LocalDateTime requestDate;
-
     @NotNull(message = "Status is required")
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -48,9 +45,6 @@ public class GroupRequest extends BaseEntity {
 
     @Override
     protected void onPrePersist() {
-        if (requestDate == null) {
-            requestDate = LocalDateTime.now();
-        }
         if (status == null) {
             status = RequestStatus.PENDING;
         }
