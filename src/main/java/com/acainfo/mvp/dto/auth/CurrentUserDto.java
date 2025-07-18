@@ -1,20 +1,15 @@
 package com.acainfo.mvp.dto.auth;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
-// DTO para respuesta de login
+//Para verificar sesión actual
 @Data
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class LoginResponseDto {
+public class CurrentUserDto {
     private Long id;
     private String email;
     private String name;
     private String role; // STUDENT, TEACHER, ADMIN
     private boolean authenticated;
-    private String sessionId; // Opcional, Spring lo maneja automáticamente
 }
