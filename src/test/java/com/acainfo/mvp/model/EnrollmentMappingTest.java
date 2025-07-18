@@ -450,11 +450,9 @@ class EnrollmentMappingTest {
         assertThat(validEnrollment.getStudent()).isEqualTo(testStudent);
         assertThat(validEnrollment.getCourseGroup()).isEqualTo(testCourseGroup);
 
-        // Verificar desde el lado de Student (si tiene el método helper)
         testStudent.addEnrollment(validEnrollment);
         assertThat(testStudent.getEnrollments()).contains(validEnrollment);
 
-        // Verificar desde el lado de CourseGroup (si tiene el método helper)
         testCourseGroup.addEnrollment(validEnrollment);
         assertThat(testCourseGroup.getEnrollments()).contains(validEnrollment);
     }
