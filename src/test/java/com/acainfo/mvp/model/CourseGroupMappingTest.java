@@ -692,4 +692,55 @@ class CourseGroupMappingTest {
         CourseGroup found = em.find(CourseGroup.class, groupWithoutTeacher.getId());
         assertThat(found.getTeacher()).isNull();
     }
+
+    @Test
+    @DisplayName("Debe validar que status no puede ser null después de persistir")
+    void shouldNotAllowNullStatusAfterPersist() {
+        // Given
+        em.persist(validCourseGroup);
+        em.flush();
+
+        // When - intentar setear null después de persistir
+        validCourseGroup.setStatus(null);
+
+        // Then
+        assertThatThrownBy(() -> {
+            em.flush();
+        }).isInstanceOf(ConstraintViolationException.class)
+                .hasMessageContaining("Status is required");
+    }
+
+    @Test
+    @DisplayName("Debe validar que type no puede ser null después de persistir")
+    void shouldNotAllowNullTypeAfterPersist() {
+        // Given
+        em.persist(validCourseGroup);
+        em.flush();
+
+        // When - intentar setear null después de persistir
+        validCourseGroup.setType(null);
+
+        // Then
+        assertThatThrownBy(() -> {
+            em.flush();
+        }).isInstanceOf(ConstraintViolationException.class)
+                .hasMessageContaining("Type is required");
+    }
+
+    @Test
+    @DisplayName("Debe validar que maxcapacity no puede ser null después de persistir")
+    void shouldNotAllowNullMaxCapacityAfterPersist() {
+        // Given
+        em.persist(validCourseGroup);
+        em.flush();
+
+        // When - intentar setear null después de persistir
+        validCourseGroup.setMaxCapacity(null);
+
+        // Then
+        assertThatThrownBy(() -> {
+            em.flush();
+        }).isInstanceOf(ConstraintViolationException.class)
+                .hasMessageContaining("Max capacity is required");
+    }
 }
