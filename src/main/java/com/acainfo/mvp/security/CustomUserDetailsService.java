@@ -1,7 +1,9 @@
 package com.acainfo.mvp.security;
 
+import com.acainfo.mvp.model.Admin;
 import com.acainfo.mvp.model.Student;
 import com.acainfo.mvp.model.Teacher;
+import com.acainfo.mvp.repository.AdminRepository;
 import com.acainfo.mvp.repository.StudentRepository;
 import com.acainfo.mvp.repository.TeacherRepository;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -14,18 +16,20 @@ import java.util.Optional;
 /**
  * Servicio personalizado para cargar usuarios durante la autenticación.
  * Busca tanto en estudiantes como en profesores.
- * TODO: En el futuro, agregar soporte para administradores.
  */
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
 
     private final StudentRepository studentRepository;
     private final TeacherRepository teacherRepository;
+    private final AdminRepository adminRepository;
 
     public CustomUserDetailsService(StudentRepository studentRepository,
-                                    TeacherRepository teacherRepository) {
+                                    TeacherRepository teacherRepository,
+                                    AdminRepository adminRepository) {
         this.studentRepository = studentRepository;
         this.teacherRepository = teacherRepository;
+        this.adminRepository = adminRepository;
     }
 
     @Override
@@ -42,7 +46,10 @@ public class CustomUserDetailsService implements UserDetailsService {
             return createUserDetails(teacher.get());
         }
 
-        // TODO: Buscar en tabla de administradores cuando se implemente
+        Optional<Admin> admin = adminRepository.findByEmail(email);
+        if (admin.isPresent()) {
+            return createUserDetails(admin.get());
+        }
 
         throw new UsernameNotFoundException("Usuario no encontrado con email: " + email);
     }
@@ -67,5 +74,13 @@ public class CustomUserDetailsService implements UserDetailsService {
         );
     }
 
-    // TODO: Agregar createUserDetails para Admin cuando se implemente
+    private CustomUserDetails createUserDetails(Admin admin) {
+        return new CustomUserDetails(
+                admin.getId(),
+                admin.getEmail(),
+                admin.getPassword(),
+                admin.getName(),
+                "ADMIN"
+        );
+    }
 }
