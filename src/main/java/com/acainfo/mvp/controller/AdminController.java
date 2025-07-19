@@ -2,6 +2,7 @@ package com.acainfo.mvp.controller;
 
 import com.acainfo.mvp.dto.common.ApiResponseDto;
 import com.acainfo.mvp.dto.common.DeleteResponseDto;
+import com.acainfo.mvp.dto.common.PageResponseDto;
 import com.acainfo.mvp.dto.coursegroup.*;
 import com.acainfo.mvp.dto.grouprequest.GroupRequestDto;
 import com.acainfo.mvp.dto.grouprequest.UpdateRequestStatusDto;
@@ -93,7 +94,7 @@ public class AdminController {
                     description = "Lista de estudiantes obtenida",
                     content = @Content(
                             mediaType = "application/json",
-                            schema = @Schema(implementation = Page.class)
+                            schema = @Schema(implementation = PageResponseDto.class)
                     )
             ),
             @ApiResponse(
@@ -105,12 +106,15 @@ public class AdminController {
                     description = "No tiene permisos de administrador"
             )
     })
-    public ResponseEntity<Page<StudentDto>> getAllStudents(
+    public ResponseEntity<PageResponseDto<StudentDto>> getAllStudents(
             @PageableDefault(size = 20, sort = "name") Pageable pageable) {
 
         log.debug("Admin consultando lista de estudiantes, página: {}", pageable.getPageNumber());
-        Page<StudentDto> students = studentService.getAllStudents(pageable);
-        return ResponseEntity.ok(students);
+        //¿QUÉ VA AQUÍ?
+        Page<StudentDto> page = studentService.getAllStudents(pageable);
+        return ResponseEntity.ok(PageResponseDto.from(page));
+
+
     }
 
     /**
@@ -237,12 +241,11 @@ public class AdminController {
             @ApiResponse(responseCode = "401", description = "No autenticado"),
             @ApiResponse(responseCode = "403", description = "No tiene permisos")
     })
-    public ResponseEntity<Page<TeacherDto>> getAllTeachers(
+    public ResponseEntity<PageResponseDto<TeacherDto>> getAllTeachers(
             @PageableDefault(size = 20, sort = "name") Pageable pageable) {
-
         log.debug("Admin consultando lista de profesores, página: {}", pageable.getPageNumber());
         Page<TeacherDto> teachers = teacherService.getAllTeachers(pageable);
-        return ResponseEntity.ok(teachers);
+        return ResponseEntity.ok(PageResponseDto.from(teachers)); // Cambiar aquí también
     }
 
     /**

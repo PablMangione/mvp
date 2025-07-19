@@ -92,7 +92,7 @@ public class Admin extends BaseEntity {
 
     /**
      * Valida si el admin puede realizar una acción específica.
-     * Para la iteración 1, todos los admins activos pueden hacer todo.
+     * Para la iteración 1, todos los admins activos pueden hacer cualquier cosa
      */
     public boolean canPerformAction() {
         return isActive && permissionLevel == PermissionLevel.FULL;

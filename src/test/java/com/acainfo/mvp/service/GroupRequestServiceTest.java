@@ -102,14 +102,14 @@ class GroupRequestServiceTest {
                 .build();
     }
 
-    // Método helper para setear ID usando reflection
+
     private void setId(Object entity, Long id) throws Exception {
         Field idField = entity.getClass().getSuperclass().getDeclaredField("id");
         idField.setAccessible(true);
         idField.set(entity, id);
     }
 
-    // Método helper para setear createdAt usando reflection
+
     private void setCreatedAt(Object entity, LocalDateTime createdAt) throws Exception {
         Field field = entity.getClass().getSuperclass().getDeclaredField("createdAt");
         field.setAccessible(true);
