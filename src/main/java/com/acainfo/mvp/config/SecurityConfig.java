@@ -52,6 +52,9 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                .authenticationProvider(authenticationProvider())
+                .securityContext(context->
+                        context.requireExplicitSave(false))
                 // Deshabilitar CSRF para API REST (las sesiones son HttpOnly)
                 .csrf(csrf -> csrf.disable())
 

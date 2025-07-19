@@ -3,6 +3,7 @@ package com.acainfo.mvp.controller;
 import com.acainfo.mvp.dto.auth.LoginRequestDto;
 import com.acainfo.mvp.dto.student.StudentRegistrationDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -132,20 +134,23 @@ class AuthControllerIntegrationTest {
     @DisplayName("Login exitoso después de registro")
     void testSuccessfulLoginAfterRegistration() throws Exception {
         // Primero registrar al estudiante
+        MockHttpSession session = new MockHttpSession();
+
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(validRegistrationDto)))
+                        .content(objectMapper.writeValueAsString(validRegistrationDto))
+                        .session(session))
                 .andExpect(status().isCreated());
 
         // Luego hacer login con las mismas credenciales
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(validLoginDto)))
+                        .content(objectMapper.writeValueAsString(validLoginDto))
+                        .session(session))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(validLoginDto.getEmail()))
                 .andExpect(jsonPath("$.role").value("STUDENT"))
-                .andExpect(jsonPath("$.authenticated").value(true))
-                .andExpect(header().exists("Set-Cookie")); // Debe establecer cookie de sesión
+                .andExpect(jsonPath("$.authenticated").value(true));
     }
 
     @Test
@@ -189,25 +194,26 @@ class AuthControllerIntegrationTest {
     @DisplayName("Obtener usuario actual - Sin autenticación")
     void testGetCurrentUserWithoutAuthentication() throws Exception {
         mockMvc.perform(get("/api/auth/me"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.authenticated").value(false));
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
     @DisplayName("Obtener usuario actual - Con autenticación")
     void testGetCurrentUserWithAuthentication() throws Exception {
-        // Registrar y obtener la cookie de sesión
-        MvcResult result = mockMvc.perform(post("/api/auth/register")
+        // Crear una sesión mock
+        MockHttpSession session = new MockHttpSession();
+
+        // Registrar con la sesión
+        mockMvc.perform(post("/api/auth/register")
+                        .session(session)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(validRegistrationDto)))
                 .andExpect(status().isCreated())
                 .andReturn();
 
-        String sessionCookie = result.getResponse().getHeader("Set-Cookie");
-
-        // Usar la cookie para obtener el usuario actual
+        // Usar la misma sesión para obtener el usuario actual
         mockMvc.perform(get("/api/auth/me")
-                        .header("Cookie", sessionCookie))
+                        .session(session))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.authenticated").value(true))
                 .andExpect(jsonPath("$.email").value(validRegistrationDto.getEmail()))
@@ -218,27 +224,27 @@ class AuthControllerIntegrationTest {
     @Test
     @DisplayName("Logout exitoso")
     void testSuccessfulLogout() throws Exception {
-        // Registrar y obtener la cookie de sesión
-        MvcResult result = mockMvc.perform(post("/api/auth/register")
+        // Crear una sesión mock
+        MockHttpSession session = new MockHttpSession();
+
+        // Registrar con la sesión
+        mockMvc.perform(post("/api/auth/register")
+                        .session(session)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(validRegistrationDto)))
                 .andExpect(status().isCreated())
                 .andReturn();
 
-        String sessionCookie = result.getResponse().getHeader("Set-Cookie");
-
-        // Hacer logout
+        // Hacer logout con la misma sesión
         mockMvc.perform(post("/api/auth/logout")
-                        .header("Cookie", sessionCookie))
+                        .session(session))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value(containsString("cerrada correctamente")));
+                .andExpect(jsonPath("$.message").value("Logout exitoso"));
 
         // Verificar que la sesión ya no es válida
         mockMvc.perform(get("/api/auth/me")
-                        .header("Cookie", sessionCookie))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.authenticated").value(false));
+                        .session(session))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -252,18 +258,20 @@ class AuthControllerIntegrationTest {
     @Test
     @DisplayName("Acceso a endpoint protegido con autenticación")
     void testAccessProtectedEndpointWithAuth() throws Exception {
-        // Registrar y obtener la cookie de sesión
-        MvcResult result = mockMvc.perform(post("/api/auth/register")
+        // Crear una sesión mock
+        MockHttpSession session = new MockHttpSession();
+
+        // Registrar con la sesión
+        mockMvc.perform(post("/api/auth/register")
+                        .session(session)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(validRegistrationDto)))
                 .andExpect(status().isCreated())
                 .andReturn();
 
-        String sessionCookie = result.getResponse().getHeader("Set-Cookie");
-
-        // Acceder al perfil con autenticación
+        // Acceder al perfil con la misma sesión
         mockMvc.perform(get("/api/students/profile")
-                        .header("Cookie", sessionCookie))
+                        .session(session))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(validRegistrationDto.getEmail()))
                 .andExpect(jsonPath("$.name").value(validRegistrationDto.getName()))

@@ -1,6 +1,7 @@
 package com.acainfo.mvp.dto.enrollment;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Null;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,9 +13,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CreateEnrollmentDto {
 
-    @NotNull(message = "Student ID is required")
+    @Null(message = "El id del estudiante se asigna automáticamente")
     private Long studentId;
 
-    @NotNull(message = "Course Group ID is required")
+    @NotNull(message = "El grupo es obligatorio")
     private Long courseGroupId;
 }

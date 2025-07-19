@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -76,7 +77,7 @@ class StudentEnrollmentIntegrationTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    private String studentSessionCookie;
+    private MockHttpSession studentSession;
     private Subject testSubject;
     private CourseGroup activeGroup;
     private Teacher testTeacher;
@@ -86,7 +87,10 @@ class StudentEnrollmentIntegrationTest {
         // Crear datos de prueba en la BD
         setupTestData();
 
-        // Registrar un estudiante y obtener su sesión
+        // Crear sesión mock para el estudiante
+        studentSession = new MockHttpSession();
+
+        // Registrar un estudiante con la sesión
         StudentRegistrationDto registrationDto = StudentRegistrationDto.builder()
                 .name("Ana García")
                 .email("ana.garcia@universidad.edu")
@@ -94,13 +98,11 @@ class StudentEnrollmentIntegrationTest {
                 .major("Ingeniería en Sistemas")
                 .build();
 
-        MvcResult result = mockMvc.perform(post("/api/auth/register")
+        mockMvc.perform(post("/api/auth/register")
+                        .session(studentSession)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(registrationDto)))
-                .andExpect(status().isCreated())
-                .andReturn();
-
-        studentSessionCookie = result.getResponse().getHeader("Set-Cookie");
+                .andExpect(status().isCreated());
     }
 
     private void setupTestData() {
@@ -136,7 +138,7 @@ class StudentEnrollmentIntegrationTest {
     @DisplayName("Consultar asignaturas de mi carrera")
     void testGetSubjectsFromMyMajor() throws Exception {
         mockMvc.perform(get("/api/students/subjects")
-                        .header("Cookie", studentSessionCookie))
+                        .session(studentSession))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(greaterThanOrEqualTo(1))))
                 .andExpect(jsonPath("$[?(@.name == 'Programación Orientada a Objetos')]").exists())
@@ -151,7 +153,7 @@ class StudentEnrollmentIntegrationTest {
                 .build();
 
         mockMvc.perform(post("/api/students/enroll")
-                        .header("Cookie", studentSessionCookie)
+                        .session(studentSession)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(enrollmentDto)))
                 .andExpect(status().isCreated())
@@ -180,7 +182,7 @@ class StudentEnrollmentIntegrationTest {
                 .build();
 
         mockMvc.perform(post("/api/students/enroll")
-                        .header("Cookie", studentSessionCookie)
+                        .session(studentSession)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(enrollmentDto)))
                 .andExpect(status().isBadRequest())
@@ -213,7 +215,7 @@ class StudentEnrollmentIntegrationTest {
                 .build();
 
         mockMvc.perform(post("/api/students/enroll")
-                        .header("Cookie", studentSessionCookie)
+                        .session(studentSession)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(enrollmentDto)))
                 .andExpect(status().isBadRequest())
@@ -229,18 +231,18 @@ class StudentEnrollmentIntegrationTest {
 
         // Primera inscripción exitosa
         mockMvc.perform(post("/api/students/enroll")
-                        .header("Cookie", studentSessionCookie)
+                        .session(studentSession)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(enrollmentDto)))
                 .andExpect(status().isCreated());
 
         // Segunda inscripción debe fallar
         mockMvc.perform(post("/api/students/enroll")
-                        .header("Cookie", studentSessionCookie)
+                        .session(studentSession)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(enrollmentDto)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value(containsString("Ya existe una inscripción")));
+                .andExpect(jsonPath("$.message").value(containsString("El estudiante ya está inscrito en este grupo")));
     }
 
     @Test
@@ -252,14 +254,14 @@ class StudentEnrollmentIntegrationTest {
                 .build();
 
         mockMvc.perform(post("/api/students/enroll")
-                        .header("Cookie", studentSessionCookie)
+                        .session(studentSession)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(enrollmentDto)))
                 .andExpect(status().isCreated());
 
         // Consultar inscripciones
         mockMvc.perform(get("/api/students/enrollments")
-                        .header("Cookie", studentSessionCookie))
+                        .session(studentSession))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].subjectName").value(testSubject.getName()))
@@ -276,7 +278,7 @@ class StudentEnrollmentIntegrationTest {
                 .build();
 
         MvcResult enrollResult = mockMvc.perform(post("/api/students/enroll")
-                        .header("Cookie", studentSessionCookie)
+                        .session(studentSession)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(enrollmentDto)))
                 .andExpect(status().isCreated())
@@ -287,14 +289,14 @@ class StudentEnrollmentIntegrationTest {
 
         // Cancelar inscripción
         mockMvc.perform(delete("/api/students/enrollments/" + enrollmentId)
-                        .header("Cookie", studentSessionCookie))
+                        .session(studentSession))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value(containsString("cancelada exitosamente")));
 
         // Verificar que ya no aparece en la lista
         mockMvc.perform(get("/api/students/enrollments")
-                        .header("Cookie", studentSessionCookie))
+                        .session(studentSession))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
     }
@@ -313,6 +315,9 @@ class StudentEnrollmentIntegrationTest {
                 .build();
         fullGroup = courseGroupRepository.save(fullGroup);
 
+        // Crear sesión para otro estudiante
+        MockHttpSession otherStudentSession = new MockHttpSession();
+
         // Registrar otro estudiante
         StudentRegistrationDto otherStudent = StudentRegistrationDto.builder()
                 .name("Carlos López")
@@ -321,13 +326,11 @@ class StudentEnrollmentIntegrationTest {
                 .major("Ingeniería en Sistemas")
                 .build();
 
-        MvcResult otherResult = mockMvc.perform(post("/api/auth/register")
+        mockMvc.perform(post("/api/auth/register")
+                        .session(otherStudentSession)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(otherStudent)))
-                .andExpect(status().isCreated())
-                .andReturn();
-
-        String otherSessionCookie = otherResult.getResponse().getHeader("Set-Cookie");
+                .andExpect(status().isCreated());
 
         // Primera inscripción exitosa
         CreateEnrollmentDto enrollmentDto = CreateEnrollmentDto.builder()
@@ -335,14 +338,14 @@ class StudentEnrollmentIntegrationTest {
                 .build();
 
         mockMvc.perform(post("/api/students/enroll")
-                        .header("Cookie", studentSessionCookie)
+                        .session(studentSession)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(enrollmentDto)))
                 .andExpect(status().isCreated());
 
         // Segunda inscripción debe fallar por capacidad
         mockMvc.perform(post("/api/students/enroll")
-                        .header("Cookie", otherSessionCookie)
+                        .session(otherStudentSession)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(enrollmentDto)))
                 .andExpect(status().isBadRequest())
@@ -358,14 +361,14 @@ class StudentEnrollmentIntegrationTest {
                 .build();
 
         mockMvc.perform(post("/api/students/enroll")
-                        .header("Cookie", studentSessionCookie)
+                        .session(studentSession)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(enrollmentDto)))
                 .andExpect(status().isCreated());
 
         // Consultar estadísticas
         mockMvc.perform(get("/api/students/stats")
-                        .header("Cookie", studentSessionCookie))
+                        .session(studentSession))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalEnrollments").value(1))
                 .andExpect(jsonPath("$.activeEnrollments").value(1))

@@ -10,6 +10,7 @@ import com.acainfo.mvp.dto.grouprequest.GroupRequestResponseDto;
 import com.acainfo.mvp.dto.student.EnrollmentSummaryDto;
 import com.acainfo.mvp.dto.student.StudentDto;
 import com.acainfo.mvp.dto.subject.SubjectDto;
+import com.acainfo.mvp.security.CustomUserDetails;
 import com.acainfo.mvp.service.*;
 import com.acainfo.mvp.util.SessionUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,6 +25,7 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -342,7 +344,7 @@ public class StudentController {
                     )
             ),
             @ApiResponse(
-                    responseCode = "400",
+                    responseCode = "409",
                     description = "Validación fallida (grupo cerrado, sin espacio, etc.)",
                     content = @Content(
                             mediaType = "application/json",
@@ -372,6 +374,14 @@ public class StudentController {
         enrollmentDto.setStudentId(sessionUtils.getCurrentUserId());
 
         EnrollmentResponseDto response = enrollmentService.enrollStudent(enrollmentDto);
+
+        if(enrollmentDto.getStudentId() == null){
+            Long currentId = ((CustomUserDetails) SecurityContextHolder.
+                    getContext().
+                    getAuthentication().
+                    getPrincipal()).getId();
+            enrollmentDto.setStudentId(currentId);
+        }
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

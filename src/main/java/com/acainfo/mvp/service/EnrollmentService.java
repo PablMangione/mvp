@@ -5,6 +5,7 @@ import com.acainfo.mvp.dto.enrollment.EnrollmentDto;
 import com.acainfo.mvp.dto.enrollment.EnrollmentResponseDto;
 import com.acainfo.mvp.dto.student.EnrollmentSummaryDto;
 import com.acainfo.mvp.exception.student.DuplicateRequestException;
+import com.acainfo.mvp.exception.student.GroupFullException;
 import com.acainfo.mvp.exception.student.ResourceNotFoundException;
 import com.acainfo.mvp.exception.student.ValidationException;
 import com.acainfo.mvp.mapper.EnrollmentMapper;
@@ -17,10 +18,12 @@ import com.acainfo.mvp.repository.CourseGroupRepository;
 import com.acainfo.mvp.repository.EnrollmentRepository;
 import com.acainfo.mvp.repository.StudentRepository;
 import com.acainfo.mvp.util.SessionUtils;
+import jakarta.persistence.EntityManager;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -77,6 +80,10 @@ public class EnrollmentService {
         try {
             // Crear la inscripción
             Enrollment enrollment = enrollmentMapper.toEntity(createDto, student, courseGroup);
+            long actual = enrollmentRepository.countByCourseGroupId(courseGroup.getId());
+            if (actual >= courseGroup.getMaxCapacity()) {
+                throw new ValidationException("capacidad máxima");
+            }
             enrollment = enrollmentRepository.save(enrollment);
 
             log.info("Inscripción exitosa - ID: {}, Estudiante: {}, Grupo: {}",
@@ -103,8 +110,8 @@ public class EnrollmentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Estudiante no encontrado con ID: " + studentId));
 
-        List<Enrollment> enrollments = student.getEnrollments().stream()
-                .collect(Collectors.toList());
+        List<Enrollment> enrollments = enrollmentRepository.findByStudentId(
+                studentId, Sort.by("createdAt"));
 
         return enrollmentMapper.toSummaryDtoList(enrollments);
     }
@@ -373,8 +380,9 @@ public class EnrollmentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Estudiante no encontrado con ID: " + studentId));
 
-        List<Enrollment> enrollments = student.getEnrollments().stream()
-                .collect(Collectors.toList());
+        List<Enrollment> enrollments =
+                enrollmentRepository.
+                        findByStudentId(studentId, Sort.by("createdAt"));
 
         int totalEnrollments = enrollments.size();
         long activeEnrollments = enrollments.stream()
