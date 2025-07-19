@@ -186,6 +186,9 @@ public class StudentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Estudiante no encontrado"));
 
         List<Subject> subjects = subjectRepository.findByMajor(student.getMajor());
+        subjects.forEach(subject -> {
+            log.debug("****************************************************** {}", subject.getId());
+        });
         return subjectMapper.toDtoList(subjects);
     }
 

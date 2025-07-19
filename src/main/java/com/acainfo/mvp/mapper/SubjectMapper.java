@@ -26,11 +26,18 @@ public class SubjectMapper {
             return null;
         }
 
-        return SubjectDto.builder()
+        SubjectDto dto = SubjectDto.builder()
                 .name(subject.getName())
                 .major(subject.getMajor())
                 .courseYear(subject.getCourseYear())
                 .build();
+
+        // Mapear campos de BaseDto
+        dto.setId(subject.getId());
+        dto.setCreatedAt(subject.getCreatedAt());
+        dto.setUpdatedAt(subject.getUpdatedAt());
+
+        return dto;
     }
 
     /**
@@ -52,7 +59,7 @@ public class SubjectMapper {
                 .map(this::toCourseGroupSummary)
                 .collect(Collectors.toList());
 
-        return SubjectWithGroupsDto.builder()
+        SubjectWithGroupsDto dto = SubjectWithGroupsDto.builder()
                 .name(subject.getName())
                 .major(subject.getMajor())
                 .courseYear(subject.getCourseYear())
@@ -61,6 +68,13 @@ public class SubjectMapper {
                 .hasActiveGroups(!activeGroups.isEmpty())
                 .availableGroups(groupSummaries)
                 .build();
+
+        // Mapear campos de BaseDto
+        dto.setId(subject.getId());
+        dto.setCreatedAt(subject.getCreatedAt());
+        dto.setUpdatedAt(subject.getUpdatedAt());
+
+        return dto;
     }
 
     /**

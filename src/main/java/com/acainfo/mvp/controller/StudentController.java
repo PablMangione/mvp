@@ -232,10 +232,19 @@ public class StudentController {
                     description = "No autenticado"
             )
     })
-    public ResponseEntity<List<SubjectDto>> getMyMajorSubjects() {
+    public ResponseEntity<ApiResponseDto<List<SubjectDto>>> getMyMajorSubjects() {
         log.debug("Obteniendo asignaturas de la carrera del estudiante");
         List<SubjectDto> subjects = studentService.getMyMajorSubjects();
-        return ResponseEntity.ok(subjects);
+        subjects.forEach(subject -> {
+            log.debug("++++++++++++++++++++++++++++++++++++++++++++ {}", subject.getId());
+        });
+
+        ApiResponseDto<List<SubjectDto>> response = ApiResponseDto.success(
+                subjects,
+                "Asignaturas obtenidas exitosamente"
+        );
+
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -450,7 +459,7 @@ public class StudentController {
      * @param requestDto Datos de la solicitud
      * @return Resultado de la solicitud
      */
-    @PostMapping("/group-requests")
+    @PostMapping("/group-requests/create")
     @Operation(
             summary = "Solicitar creación de grupo",
             description = "Crea una solicitud para que se abra un nuevo grupo " +
@@ -507,7 +516,7 @@ public class StudentController {
      *
      * @return Lista de solicitudes del estudiante
      */
-    @GetMapping("/group-requests")
+    @GetMapping("/group-requests/get")
     @Operation(
             summary = "Obtener mis solicitudes de grupo",
             description = "Devuelve todas las solicitudes de creación de grupo " +

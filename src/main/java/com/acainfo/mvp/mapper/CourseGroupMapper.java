@@ -27,7 +27,7 @@ public class CourseGroupMapper {
             return null;
         }
 
-        return CourseGroupDto.builder()
+        CourseGroupDto dto = CourseGroupDto.builder()
                 .subjectId(courseGroup.getSubject().getId())
                 .subjectName(courseGroup.getSubject().getName())
                 .teacherId(courseGroup.getTeacher() != null
@@ -41,6 +41,11 @@ public class CourseGroupMapper {
                 .price(courseGroup.getPrice())
                 .enrolledStudents(courseGroup.getEnrollments().size())
                 .build();
+
+        dto.setId(courseGroup.getId());
+        dto.setCreatedAt(courseGroup.getCreatedAt());
+        dto.setUpdatedAt(courseGroup.getUpdatedAt());
+        return dto;
     }
 
     /**
