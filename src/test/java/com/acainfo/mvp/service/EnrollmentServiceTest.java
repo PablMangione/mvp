@@ -1,5 +1,6 @@
 package com.acainfo.mvp.service;
 
+import com.acainfo.mvp.dto.common.ApiResponseDto;
 import com.acainfo.mvp.dto.enrollment.CreateEnrollmentDto;
 import com.acainfo.mvp.dto.enrollment.EnrollmentDto;
 import com.acainfo.mvp.dto.enrollment.EnrollmentResponseDto;
@@ -386,7 +387,7 @@ class EnrollmentServiceTest {
         when(sessionUtils.getCurrentUserId()).thenReturn(1L);
 
         // When
-        EnrollmentResponseDto result = enrollmentService.cancelEnrollment(1L);
+        ApiResponseDto result = enrollmentService.cancelEnrollment(1L);
 
         // Then
         assertThat(result.isSuccess()).isTrue();
@@ -445,7 +446,7 @@ class EnrollmentServiceTest {
 
         // Then
         assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().get(0)).isEqualTo(testEnrollmentDto);
+        assertThat(result.getContent().getFirst()).isEqualTo(testEnrollmentDto);
     }
 
     @Test

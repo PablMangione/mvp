@@ -10,7 +10,6 @@ import com.acainfo.mvp.dto.grouprequest.GroupRequestResponseDto;
 import com.acainfo.mvp.dto.student.EnrollmentSummaryDto;
 import com.acainfo.mvp.dto.student.StudentDto;
 import com.acainfo.mvp.dto.subject.SubjectDto;
-import com.acainfo.mvp.security.CustomUserDetails;
 import com.acainfo.mvp.service.*;
 import com.acainfo.mvp.util.SessionUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,7 +24,6 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -321,10 +319,11 @@ public class StudentController {
      * Inscribe al estudiante en un grupo.
      * El grupo debe estar activo y tener espacio disponible.
      *
-     * @param enrollmentDto Datos de inscripción
+     * @param subjectId ID de la asignatura
+     * @param groupId ID del grupo
      * @return Resultado de la inscripción
      */
-    @PostMapping("/enroll")
+    @PostMapping("/subjects/{subjectId}/groups/{groupId}/enroll")
     @Operation(
             summary = "Inscribirse en un grupo",
             description = "Inscribe al estudiante en un grupo específico. " +
@@ -344,7 +343,7 @@ public class StudentController {
                     )
             ),
             @ApiResponse(
-                    responseCode = "409",
+                    responseCode = "400",
                     description = "Validación fallida (grupo cerrado, sin espacio, etc.)",
                     content = @Content(
                             mediaType = "application/json",
@@ -365,26 +364,25 @@ public class StudentController {
             )
     })
     public ResponseEntity<EnrollmentResponseDto> enrollInGroup(
-            @Valid @RequestBody CreateEnrollmentDto enrollmentDto) {
+            @Parameter(description = "ID de la asignatura", example = "123")
+            @PathVariable Long subjectId,
+            @Parameter(description = "ID del grupo", example = "456")
+            @PathVariable Long groupId) {
 
-        log.info("Procesando inscripción del estudiante {} en grupo {}",
-                sessionUtils.getCurrentUserId(), enrollmentDto.getCourseGroupId());
+        log.info("Procesando inscripción del estudiante {} en grupo {} de asignatura {}",
+                sessionUtils.getCurrentUserId(), groupId, subjectId);
 
-        // Asegurar que el studentId sea el del usuario actual
-        enrollmentDto.setStudentId(sessionUtils.getCurrentUserId());
+        // Crear DTO de inscripción
+        CreateEnrollmentDto enrollmentDto = CreateEnrollmentDto.builder()
+                .studentId(sessionUtils.getCurrentUserId())
+                .courseGroupId(groupId)
+                .build();
 
         EnrollmentResponseDto response = enrollmentService.enrollStudent(enrollmentDto);
 
-        if(enrollmentDto.getStudentId() == null){
-            Long currentId = ((CustomUserDetails) SecurityContextHolder.
-                    getContext().
-                    getAuthentication().
-                    getPrincipal()).getId();
-            enrollmentDto.setStudentId(currentId);
-        }
-
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
+
 
     /**
      * Cancela una inscripción.
@@ -431,14 +429,14 @@ public class StudentController {
                     description = "No autenticado"
             )
     })
-    public ResponseEntity<EnrollmentResponseDto> cancelEnrollment(
+    public ResponseEntity<ApiResponseDto> cancelEnrollment(
             @Parameter(description = "ID de la inscripción", example = "123")
             @PathVariable Long enrollmentId) {
 
         log.info("Cancelando inscripción ID: {} del estudiante {}",
                 enrollmentId, sessionUtils.getCurrentUserId());
 
-        EnrollmentResponseDto response = enrollmentService.cancelEnrollment(enrollmentId);
+        ApiResponseDto response = enrollmentService.cancelEnrollment(enrollmentId);
 
         return ResponseEntity.ok(response);
     }

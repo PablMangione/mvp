@@ -1,5 +1,6 @@
 package com.acainfo.mvp.service;
 
+import com.acainfo.mvp.dto.common.ApiResponseDto;
 import com.acainfo.mvp.dto.enrollment.CreateEnrollmentDto;
 import com.acainfo.mvp.dto.enrollment.EnrollmentDto;
 import com.acainfo.mvp.dto.enrollment.EnrollmentResponseDto;
@@ -80,10 +81,6 @@ public class EnrollmentService {
         try {
             // Crear la inscripción
             Enrollment enrollment = enrollmentMapper.toEntity(createDto, student, courseGroup);
-            long actual = enrollmentRepository.countByCourseGroupId(courseGroup.getId());
-            if (actual >= courseGroup.getMaxCapacity()) {
-                throw new ValidationException("capacidad máxima");
-            }
             enrollment = enrollmentRepository.save(enrollment);
 
             log.info("Inscripción exitosa - ID: {}, Estudiante: {}, Grupo: {}",
@@ -127,7 +124,7 @@ public class EnrollmentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Inscripción no encontrada con ID: " + enrollmentId));
 
-        // Validar acceso del estudiante a esta inscripción
+        // Validar acceso
         if (sessionUtils.isStudent()) {
             validateStudentAccess(enrollment.getStudent().getId());
         }
@@ -136,19 +133,21 @@ public class EnrollmentService {
     }
 
     /**
-     * Cancela una inscripción.
-     * Solo posible si el pago está pendiente y el grupo no ha iniciado.
+     * Cancela una inscripción de estudiante.
+     * Solo se puede cancelar si el pago está pendiente.
      */
     @Transactional
-    public EnrollmentResponseDto cancelEnrollment(Long enrollmentId) {
+    public ApiResponseDto cancelEnrollment(Long enrollmentId) {
         log.info("Procesando cancelación de inscripción ID: {}", enrollmentId);
 
         Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Inscripción no encontrada con ID: " + enrollmentId));
 
-        // Validar que el estudiante puede cancelar su propia inscripción
-        validateStudentAccess(enrollment.getStudent().getId());
+        // Validar que el estudiante sea el dueño de la inscripción
+        if (sessionUtils.isStudent()) {
+            validateStudentAccess(enrollment.getStudent().getId());
+        }
 
         // Validar reglas de cancelación
         validateCancellationRules(enrollment);
@@ -157,13 +156,7 @@ public class EnrollmentService {
             enrollmentRepository.delete(enrollment);
             log.info("Inscripción cancelada exitosamente - ID: {}", enrollmentId);
 
-            return EnrollmentResponseDto.builder()
-                    .enrollmentId(enrollmentId)
-                    .success(true)
-                    .message("Inscripción cancelada exitosamente")
-                    .paymentStatus(null)
-                    .build();
-
+            return ApiResponseDto.success(enrollment,"Inscripción cancelada exitosamente");
         } catch (Exception e) {
             log.error("Error al cancelar inscripción", e);
             throw new ValidationException("Error al cancelar la inscripción");
@@ -173,7 +166,7 @@ public class EnrollmentService {
     // ========== OPERACIONES ADMINISTRATIVAS ==========
 
     /**
-     * Obtiene todas las inscripciones del sistema con paginación.
+     * Obtiene todas las inscripciones con paginación.
      * Solo accesible para administradores.
      */
     public Page<EnrollmentDto> getAllEnrollments(Pageable pageable) {
@@ -198,42 +191,17 @@ public class EnrollmentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Inscripción no encontrada con ID: " + enrollmentId));
 
-        PaymentStatus oldStatus = enrollment.getPaymentStatus();
-        enrollmentMapper.updatePaymentStatus(enrollment, newStatus);
+        enrollment.setPaymentStatus(newStatus);
+        enrollment = enrollmentRepository.save(enrollment);
 
-        try {
-            enrollment = enrollmentRepository.save(enrollment);
-            log.info("Estado de pago actualizado - Inscripción: {}, {} -> {}",
-                    enrollmentId, oldStatus, newStatus);
+        log.info("Estado de pago actualizado - Inscripción: {}, Estado: {}",
+                enrollmentId, newStatus);
 
-            return enrollmentMapper.toDto(enrollment);
-        } catch (Exception e) {
-            log.error("Error al actualizar estado de pago", e);
-            throw new ValidationException("Error al actualizar el estado de pago");
-        }
+        return enrollmentMapper.toDto(enrollment);
     }
 
     /**
-     * Obtiene inscripciones por grupo.
-     * Útil para ver todos los estudiantes inscritos en un grupo.
-     */
-    public List<EnrollmentDto> getEnrollmentsByGroup(Long groupId) {
-        validateAdminRole();
-        log.debug("Obteniendo inscripciones del grupo ID: {}", groupId);
-
-        // Verificar que el grupo existe
-        CourseGroup group = courseGroupRepository.findById(groupId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Grupo no encontrado con ID: " + groupId));
-
-        List<Enrollment> enrollments = group.getEnrollments().stream()
-                .collect(Collectors.toList());
-
-        return enrollmentMapper.toDtoList(enrollments);
-    }
-
-    /**
-     * Elimina una inscripción forzosamente.
+     * Elimina una inscripción de forma forzada.
      * Solo para casos excepcionales por parte del administrador.
      */
     @Transactional
@@ -290,15 +258,16 @@ public class EnrollmentService {
             throw new ValidationException("Solo se puede inscribir en grupos activos");
         }
 
-        // Verificar capacidad del grupo
-        if (!courseGroup.hasCapacity()) {
+        // Verificar capacidad del grupo usando count en base de datos
+        long currentEnrollments = enrollmentRepository.countByCourseGroupId(courseGroup.getId());
+        if (currentEnrollments >= courseGroup.getMaxCapacity()) {
             throw new ValidationException("El grupo ha alcanzado su capacidad máxima");
         }
 
         // Verificar que el estudiante no esté ya inscrito
         if (enrollmentRepository.existsByStudentIdAndCourseGroupId(
                 student.getId(), courseGroup.getId())) {
-            throw new DuplicateRequestException("El estudiante ya está inscrito en este grupo");
+            throw new ValidationException("El estudiante ya está inscrito en este grupo");
         }
 
         // Verificar que la asignatura corresponda a la carrera del estudiante
@@ -380,11 +349,10 @@ public class EnrollmentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Estudiante no encontrado con ID: " + studentId));
 
-        List<Enrollment> enrollments =
-                enrollmentRepository.
-                        findByStudentId(studentId, Sort.by("createdAt"));
+        List<Enrollment> enrollments = enrollmentRepository.findByStudentId(
+                studentId, Sort.by("createdAt"));
 
-        int totalEnrollments = enrollments.size();
+        long totalEnrollments = enrollments.size();
         long activeEnrollments = enrollments.stream()
                 .filter(e -> e.getCourseGroup().getStatus() == CourseGroupStatus.ACTIVE)
                 .count();
@@ -397,11 +365,34 @@ public class EnrollmentService {
 
         return EnrollmentStatsDto.builder()
                 .studentId(studentId)
-                .totalEnrollments(totalEnrollments)
+                .totalEnrollments((int) totalEnrollments)
                 .activeEnrollments((int) activeEnrollments)
                 .paidEnrollments((int) paidEnrollments)
                 .pendingPayments((int) pendingPayments)
                 .build();
+    }
+
+    /**
+     * Obtiene inscripciones por grupo.
+     * Útil para profesores y administradores.
+     */
+    public List<EnrollmentDto> getEnrollmentsByGroup(Long groupId) {
+        // Validar permisos (profesor del grupo o admin)
+        CourseGroup group = courseGroupRepository.findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Grupo no encontrado con ID: " + groupId));
+
+        if (sessionUtils.isTeacher()) {
+            if (!group.getTeacher().getId().equals(sessionUtils.getCurrentUserId())) {
+                throw new ValidationException("Solo puede ver inscripciones de sus propios grupos");
+            }
+        } else if (!sessionUtils.isAdmin()) {
+            throw new ValidationException("No tiene permisos para ver estas inscripciones");
+        }
+
+        return enrollmentRepository.findByCourseGroupId(groupId).stream()
+                .map(enrollmentMapper::toDto)
+                .collect(Collectors.toList());
     }
 }
 

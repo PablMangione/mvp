@@ -5,6 +5,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,4 +22,6 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     Long countByCourseGroupId(Long courseGroupId);
 
     List<Enrollment> findByStudentId(Long studentId, Sort attr0);
+
+    List<Enrollment> findByCourseGroupId(Long groupId);
 }
