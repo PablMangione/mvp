@@ -1,6 +1,7 @@
 package com.acainfo.mvp.config;
 
 import com.acainfo.mvp.security.CustomUserDetailsService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -15,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 /**
  * Configuración de seguridad para la aplicación.
@@ -26,9 +28,13 @@ import org.springframework.http.HttpStatus;
 public class SecurityConfig {
 
     private final CustomUserDetailsService customUserDetailsService;
+    private final CorsConfigurationSource corsConfigurationSource;
 
-    public SecurityConfig(CustomUserDetailsService customUserDetailsService) {
+
+    public SecurityConfig(CustomUserDetailsService customUserDetailsService,
+                          @Autowired(required = false) CorsConfigurationSource corsConfigurationSource) {
         this.customUserDetailsService = customUserDetailsService;
+        this.corsConfigurationSource = corsConfigurationSource;
     }
 
     @Bean
@@ -59,10 +65,17 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
 
                 // Configuración de CORS (ajustar según necesidades del frontend)
-                .cors(cors -> cors.disable())
+                .cors(cors -> {
+                    if (corsConfigurationSource != null) {
+                        cors.configurationSource(corsConfigurationSource);
+                    } else {
+                        cors.disable();
+                    }
+                })
 
                 // Configuración de autorización
                 .authorizeHttpRequests(authz -> authz
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         // Endpoints públicos
                         .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
                         .requestMatchers("/error", "/api/error").permitAll()
