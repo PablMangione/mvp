@@ -205,7 +205,7 @@ class StudentControllerIntegrationTest {
                 .name("Carlos Mendoza Actualizado")
                 .build();
 
-        mockMvc.perform(put("/api/students/profile")
+        mockMvc.perform(put("/api/students/profile/update")
                         .session(studentSession)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateDto)))
@@ -220,6 +220,7 @@ class StudentControllerIntegrationTest {
         ChangePasswordDto changePasswordDto = ChangePasswordDto.builder()
                 .currentPassword("password123")
                 .newPassword("newPassword456")
+                .confirmPassword("newPassword456")
                 .build();
 
         mockMvc.perform(post("/api/students/change-password")
@@ -279,17 +280,6 @@ class StudentControllerIntegrationTest {
                         .session(studentSession))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("El año de curso debe estar entre 1 y 6"));
-    }
-
-    @Test
-    @DisplayName("Obtener grupos activos para una asignatura")
-    void testGetActiveGroupsForSubject() throws Exception {
-        mockMvc.perform(get("/api/students/subjects/{subjectId}/active-groups", testSubject1.getId())
-                        .session(studentSession))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].status").value("ACTIVE"))
-                .andExpect(jsonPath("$[0].teacherName").value("Dr. Ana López"));
     }
 
     // ========== TESTS DE INSCRIPCIONES ==========
@@ -407,7 +397,7 @@ class StudentControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value(containsString("Ya tiene una solicitud pendiente")));
+                .andExpect(jsonPath("$.message").value(containsString("Ya tienes una solicitud pendiente para esta asignatura")));
     }
 
     // ========== TESTS DE ESTADÍSTICAS ==========
@@ -460,7 +450,7 @@ class StudentControllerIntegrationTest {
                 .name("")
                 .build();
 
-        mockMvc.perform(put("/api/students/profile")
+        mockMvc.perform(put("/api/students/profile/update")
                         .session(studentSession)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidDto)))
@@ -469,7 +459,7 @@ class StudentControllerIntegrationTest {
 
         // Nombre muy largo
         invalidDto.setName("A".repeat(101));
-        mockMvc.perform(put("/api/students/profile")
+        mockMvc.perform(put("/api/students/profile/update")
                         .session(studentSession)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidDto)))

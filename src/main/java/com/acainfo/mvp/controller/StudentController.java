@@ -113,7 +113,7 @@ public class StudentController {
      * @param updateDto Datos a actualizar
      * @return Perfil actualizado
      */
-    @PutMapping("/profile")
+    @PutMapping("/profile/update")
     @Operation(
             summary = "Actualizar mi perfil",
             description = "Actualiza la información del perfil del estudiante. " +
@@ -495,7 +495,11 @@ public class StudentController {
 
         GroupRequestResponseDto response = groupRequestService.createGroupRequest(requestDto);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        if (response.isSuccess()) {
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
     }
 
     /**
