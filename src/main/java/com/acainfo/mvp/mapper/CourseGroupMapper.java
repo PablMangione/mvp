@@ -40,6 +40,7 @@ public class CourseGroupMapper {
                 .type(courseGroup.getType())
                 .price(courseGroup.getPrice())
                 .enrolledStudents(courseGroup.getEnrollments().size())
+                .maxCapacity(courseGroup.getMaxCapacity())
                 .build();
 
         dto.setId(courseGroup.getId());

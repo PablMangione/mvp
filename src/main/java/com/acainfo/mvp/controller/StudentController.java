@@ -452,8 +452,6 @@ public class StudentController {
         return ResponseEntity.ok(response);
     }
 
-    // ========== ENDPOINTS DE SOLICITUDES DE GRUPO ==========
-
     /**
      * Crea una solicitud de nuevo grupo.
      * Para cuando no existen grupos activos de una asignatura.

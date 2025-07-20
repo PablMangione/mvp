@@ -21,4 +21,6 @@ public class CourseGroupDto extends BaseDto {
     private CourseGroupType type;
     private BigDecimal price;
     private int enrolledStudents;
+    private Integer maxCapacity;
+
 }
