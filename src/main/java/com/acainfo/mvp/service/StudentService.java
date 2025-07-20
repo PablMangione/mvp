@@ -2,6 +2,7 @@ package com.acainfo.mvp.service;
 
 import com.acainfo.mvp.dto.auth.ChangePasswordDto;
 import com.acainfo.mvp.dto.common.ApiResponseDto;
+import com.acainfo.mvp.dto.coursegroup.CourseGroupDto;
 import com.acainfo.mvp.dto.student.CreateStudentDto;
 import com.acainfo.mvp.dto.student.EnrollmentSummaryDto;
 import com.acainfo.mvp.dto.student.StudentDto;
@@ -11,14 +12,19 @@ import com.acainfo.mvp.exception.auth.InvalidCredentialsException;
 import com.acainfo.mvp.exception.auth.PasswordMismatchException;
 import com.acainfo.mvp.exception.student.ResourceNotFoundException;
 import com.acainfo.mvp.exception.student.ValidationException;
+import com.acainfo.mvp.mapper.CourseGroupMapper;
 import com.acainfo.mvp.mapper.StudentMapper;
 import com.acainfo.mvp.mapper.SubjectMapper;
+import com.acainfo.mvp.model.CourseGroup;
 import com.acainfo.mvp.model.Student;
 import com.acainfo.mvp.model.Subject;
+import com.acainfo.mvp.model.enums.CourseGroupStatus;
+import com.acainfo.mvp.repository.CourseGroupRepository;
 import com.acainfo.mvp.repository.StudentRepository;
 import com.acainfo.mvp.repository.SubjectRepository;
 import com.acainfo.mvp.repository.TeacherRepository;
 import com.acainfo.mvp.util.SessionUtils;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -26,6 +32,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.file.AccessDeniedException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -41,23 +49,29 @@ public class StudentService {
     private final StudentRepository studentRepository;
     private final TeacherRepository teacherRepository;
     private final SubjectRepository subjectRepository;
+    private final CourseGroupRepository courseGroupRepository;
     private final StudentMapper studentMapper;
     private final SubjectMapper subjectMapper;
+    private final CourseGroupMapper courseGroupMapper;
     private final SessionUtils sessionUtils;
     private final EnrollmentService enrollmentService;
 
     public StudentService(StudentRepository studentRepository,
                           TeacherRepository teacherRepository,
                           SubjectRepository subjectRepository,
+                          CourseGroupRepository courseGroupRepository,
                           StudentMapper studentMapper,
                           SubjectMapper subjectMapper,
+                          CourseGroupMapper courseGroupMapper,
                           SessionUtils sessionUtils,
                           EnrollmentService enrollmentService) {
         this.studentRepository = studentRepository;
         this.teacherRepository = teacherRepository;
         this.subjectRepository = subjectRepository;
+        this.courseGroupRepository = courseGroupRepository;
         this.studentMapper = studentMapper;
         this.subjectMapper = subjectMapper;
+        this.courseGroupMapper = courseGroupMapper;
         this.sessionUtils = sessionUtils;
         this.enrollmentService = enrollmentService;
     }
@@ -169,6 +183,39 @@ public class StudentService {
     }
 
     // ========== CONSULTAS ACADÉMICAS ==========
+
+    /**
+     * Obtiene los grupos disponibles de una asignatura.
+     * Solo devuelve grupos ACTIVE o PLANNED.
+     * Verifica que la asignatura sea de la carrera del estudiante.
+     *
+     * @param subjectId ID de la asignatura
+     * @return Lista de grupos disponibles
+     */
+    public List<CourseGroupDto> getSubjectGroups(Long subjectId) throws AccessDeniedException {
+        // Obtener el estudiante actual
+        Long studentId = sessionUtils.getCurrentUserId();
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Estudiante no encontrado con ID: " + studentId));
+
+        // Obtener la asignatura
+        Subject subject = subjectRepository.findById(subjectId)
+                .orElseThrow(() -> new EntityNotFoundException("Asignatura no encontrada"));
+
+        // Verificar que la asignatura sea de la carrera del estudiante
+        if (!subject.getMajor().equals(student.getMajor())) {
+            throw new AccessDeniedException("La asignatura no pertenece a tu carrera");
+        }
+
+        // Obtener grupos activos o planificados
+        List<CourseGroup> groups = courseGroupRepository
+                .findBySubjectIdAndStatusIn(subjectId,
+                        Arrays.asList(CourseGroupStatus.ACTIVE, CourseGroupStatus.PLANNED));
+
+        // Convertir a DTOs
+        return courseGroupMapper.toDtoList(groups);
+    }
 
     /**
      * Obtiene las asignaturas de la carrera del estudiante.

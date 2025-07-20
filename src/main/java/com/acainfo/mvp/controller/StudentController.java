@@ -2,6 +2,7 @@ package com.acainfo.mvp.controller;
 
 import com.acainfo.mvp.dto.auth.ChangePasswordDto;
 import com.acainfo.mvp.dto.common.ApiResponseDto;
+import com.acainfo.mvp.dto.coursegroup.CourseGroupDto;
 import com.acainfo.mvp.dto.enrollment.CreateEnrollmentDto;
 import com.acainfo.mvp.dto.enrollment.EnrollmentResponseDto;
 import com.acainfo.mvp.dto.grouprequest.CreateGroupRequestDto;
@@ -26,6 +27,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.file.AccessDeniedException;
 import java.util.List;
 
 /**
@@ -626,6 +628,72 @@ public class StudentController {
 
         @Schema(description = "Timestamp del error", example = "2024-01-15T10:30:00Z")
         private String timestamp;
+    }
+
+    /**
+     * Obtiene los grupos disponibles de una asignatura específica.
+     * Solo muestra grupos activos o planificados.
+     *
+     * @param subjectId ID de la asignatura
+     * @return Lista de grupos de la asignatura
+     */
+    @GetMapping("/subjects/{subjectId}/groups")
+    @Operation(
+            summary = "Obtener grupos de una asignatura",
+            description = "Devuelve todos los grupos disponibles (ACTIVE o PLANNED) " +
+                    "de una asignatura específica. Incluye información del profesor, " +
+                    "horarios, precio y capacidad."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Lista de grupos obtenida",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = CourseGroupDto.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Asignatura no encontrada",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "La asignatura no es de la carrera del estudiante",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "No autenticado"
+            )
+    })
+    public ResponseEntity<ApiResponseDto<List<CourseGroupDto>>> getSubjectGroups(
+            @Parameter(description = "ID de la asignatura", example = "123")
+            @PathVariable Long subjectId) throws AccessDeniedException {
+
+        log.debug("Obteniendo grupos de la asignatura ID: {} para el estudiante", subjectId);
+
+        // Verificar que la asignatura sea de la carrera del estudiante
+        List<CourseGroupDto> groups = studentService.getSubjectGroups(subjectId);
+        for(CourseGroupDto group : groups) {
+            log.debug("Grupo con id: {} ", group.getId());
+            log.debug("Grupo de asignatura: {} ", group.getSubjectId());
+        }
+        ApiResponseDto<List<CourseGroupDto>> response = ApiResponseDto.success(
+                groups,
+                groups.isEmpty()
+                        ? "No hay grupos disponibles para esta asignatura"
+                        : "Grupos obtenidos exitosamente"
+        );
+
+        return ResponseEntity.ok(response);
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.acainfo.mvp.repository;
 
 import com.acainfo.mvp.model.CourseGroup;
+import com.acainfo.mvp.model.Subject;
 import com.acainfo.mvp.model.enums.CourseGroupStatus;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -32,4 +33,6 @@ public interface CourseGroupRepository extends JpaRepository<CourseGroup, Long> 
             "WHERE cg.status = 'ACTIVE' " +
             "AND SIZE(cg.enrollments) < :maxCapacity")
     List<CourseGroup> findAvailableGroups(@Param("maxCapacity") int maxCapacity);
+
+    List<CourseGroup> findBySubjectIdAndStatusIn(Long subjectId, List<CourseGroupStatus> list);
 }

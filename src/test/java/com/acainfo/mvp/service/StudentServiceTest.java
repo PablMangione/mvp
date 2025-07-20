@@ -11,6 +11,7 @@ import com.acainfo.mvp.exception.auth.InvalidCredentialsException;
 import com.acainfo.mvp.exception.auth.PasswordMismatchException;
 import com.acainfo.mvp.exception.student.ResourceNotFoundException;
 import com.acainfo.mvp.exception.student.ValidationException;
+import com.acainfo.mvp.mapper.CourseGroupMapper;
 import com.acainfo.mvp.mapper.StudentMapper;
 import com.acainfo.mvp.mapper.SubjectMapper;
 import com.acainfo.mvp.model.CourseGroup;
@@ -19,6 +20,7 @@ import com.acainfo.mvp.model.Student;
 import com.acainfo.mvp.model.Subject;
 import com.acainfo.mvp.model.enums.CourseGroupStatus;
 import com.acainfo.mvp.model.enums.PaymentStatus;
+import com.acainfo.mvp.repository.CourseGroupRepository;
 import com.acainfo.mvp.repository.StudentRepository;
 import com.acainfo.mvp.repository.SubjectRepository;
 import com.acainfo.mvp.repository.TeacherRepository;
@@ -60,9 +62,13 @@ class StudentServiceTest {
     @Mock
     private SubjectRepository subjectRepository;
     @Mock
+    private CourseGroupRepository courseGroupRepository;
+    @Mock
     private StudentMapper studentMapper;
     @Mock
     private SubjectMapper subjectMapper;
+    @Mock
+    private CourseGroupMapper courseGroupMapper;
     @Mock
     private SessionUtils sessionUtils;
     @Mock
@@ -87,8 +93,10 @@ class StudentServiceTest {
                 studentRepository,
                 teacherRepository,
                 subjectRepository,
+                courseGroupRepository,
                 studentMapper,
                 subjectMapper,
+                courseGroupMapper,
                 sessionUtils,
                 enrollmentService
         );
