@@ -27,7 +27,7 @@ public class GroupRequestMapper {
             return null;
         }
 
-        return GroupRequestDto.builder()
+        GroupRequestDto dto =  GroupRequestDto.builder()
                 .studentId(groupRequest.getStudent().getId())
                 .studentName(groupRequest.getStudent().getName())
                 .subjectId(groupRequest.getSubject().getId())
@@ -35,6 +35,8 @@ public class GroupRequestMapper {
                 .createdAt(groupRequest.getCreatedAt())
                 .status(groupRequest.getStatus())
                 .build();
+        dto.setId(groupRequest.getId());
+        return dto;
     }
 
     /**

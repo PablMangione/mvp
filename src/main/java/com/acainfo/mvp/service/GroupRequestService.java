@@ -1,5 +1,6 @@
 package com.acainfo.mvp.service;
 
+import com.acainfo.mvp.dto.common.ApiResponseDto;
 import com.acainfo.mvp.dto.grouprequest.*;
 import com.acainfo.mvp.exception.student.ResourceNotFoundException;
 import com.acainfo.mvp.exception.student.ValidationException;
@@ -206,6 +207,60 @@ public class GroupRequestService {
         // Verificar si ya tiene una solicitud pendiente
         return !groupRequestRepository.existsByStudentIdAndSubjectIdAndStatus(
                 studentId, subjectId, RequestStatus.PENDING);
+    }
+
+    /**
+     * Cancela una solicitud de grupo del estudiante.
+     * Solo el estudiante dueño puede cancelar su propia solicitud.
+     * Solo se pueden cancelar solicitudes en estado PENDING.
+     *
+     * @param requestId ID de la solicitud a cancelar
+     * @return Respuesta con el resultado de la operación
+     */
+    @Transactional
+    public ApiResponseDto<Void> cancelGroupRequest(Long requestId) {
+        log.info("Procesando cancelación de solicitud ID: {}", requestId);
+
+        try {
+            // Validar que el usuario sea un estudiante autenticado
+            if (!sessionUtils.isStudent()) {
+                throw new ValidationException("Solo los estudiantes pueden cancelar solicitudes");
+            }
+
+            // Obtener la solicitud
+            GroupRequest groupRequest = groupRequestRepository.findById(requestId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Solicitud no encontrada con ID: " + requestId));
+
+            log.info("Está en la base de datos: {}", requestId);
+
+            // Verificar que la solicitud pertenezca al estudiante actual
+            Long currentStudentId = sessionUtils.getCurrentUserId();
+            if (!groupRequest.getStudent().getId().equals(currentStudentId)) {
+                throw new ValidationException("No tienes permisos para cancelar esta solicitud");
+            }
+
+            // Verificar que la solicitud esté pendiente
+            if (groupRequest.getStatus() != RequestStatus.PENDING) {
+                throw new ValidationException("Solo se pueden cancelar solicitudes pendientes");
+            }
+
+            // Eliminar la solicitud
+            groupRequestRepository.delete(groupRequest);
+
+            log.info("Solicitud de grupo ID: {} cancelada exitosamente", requestId);
+
+            return ApiResponseDto.success(
+                    null,
+                    "Solicitud cancelada exitosamente"
+            );
+
+        } catch (ValidationException | ResourceNotFoundException e) {
+            log.error("Error al cancelar solicitud: {}", e.getMessage());
+            return ApiResponseDto.error(e.getMessage());
+        } catch (Exception e) {
+            log.error("Error inesperado al cancelar solicitud de grupo", e);
+            return ApiResponseDto.error("Error al cancelar la solicitud");
+        }
     }
 
     /**

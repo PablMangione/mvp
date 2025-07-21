@@ -30,7 +30,7 @@ public class EnrollmentMapper {
             return null;
         }
 
-        return EnrollmentDto.builder()
+        EnrollmentDto enrollmentDto = EnrollmentDto.builder()
                 .studentId(enrollment.getStudent().getId())
                 .studentName(enrollment.getStudent().getName())
                 .courseGroupId(enrollment.getCourseGroup().getId())
@@ -41,6 +41,10 @@ public class EnrollmentMapper {
                 .enrollmentDate(enrollment.getCreatedAt())
                 .paymentStatus(enrollment.getPaymentStatus())
                 .build();
+
+        enrollmentDto.setId(enrollment.getId());
+
+        return enrollmentDto;
     }
 
     /**

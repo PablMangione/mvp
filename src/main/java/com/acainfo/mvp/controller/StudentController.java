@@ -695,6 +695,65 @@ public class StudentController {
     }
 
     /**
+     * Cancela una solicitud de grupo pendiente.
+     * Solo se pueden cancelar solicitudes en estado PENDING.
+     *
+     * @param requestId ID de la solicitud a cancelar
+     * @return Confirmación de cancelación
+     */
+    @DeleteMapping("/group-requests/{requestId}")
+    @Operation(
+            summary = "Cancelar solicitud de grupo",
+            description = "Cancela una solicitud de creación de grupo. " +
+                    "Solo es posible si la solicitud está en estado PENDING."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Solicitud cancelada exitosamente",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ApiResponseDto.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "No se puede cancelar (solicitud ya procesada)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Solicitud no encontrada",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "No autenticado"
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "No tiene permisos (no es el dueño de la solicitud)"
+            )
+    })
+    public ResponseEntity<ApiResponseDto<Void>> cancelGroupRequest(
+            @Parameter(description = "ID de la solicitud", example = "123")
+            @PathVariable Long requestId) {
+
+        log.info("Cancelando solicitud de grupo ID: {} del estudiante {}",
+                requestId, sessionUtils.getCurrentUserId());
+
+        ApiResponseDto<Void> response = groupRequestService.cancelGroupRequest(requestId);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * DTO interno para errores de validación.
      */
     @Schema(description = "Respuesta de error de validación")

@@ -20,10 +20,7 @@ import com.acainfo.mvp.model.Student;
 import com.acainfo.mvp.model.Subject;
 import com.acainfo.mvp.model.enums.CourseGroupStatus;
 import com.acainfo.mvp.model.enums.PaymentStatus;
-import com.acainfo.mvp.repository.CourseGroupRepository;
-import com.acainfo.mvp.repository.StudentRepository;
-import com.acainfo.mvp.repository.SubjectRepository;
-import com.acainfo.mvp.repository.TeacherRepository;
+import com.acainfo.mvp.repository.*;
 import com.acainfo.mvp.util.SessionUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -64,6 +61,8 @@ class StudentServiceTest {
     @Mock
     private CourseGroupRepository courseGroupRepository;
     @Mock
+    private GroupRequestRepository groupRequestRepository;
+    @Mock
     private StudentMapper studentMapper;
     @Mock
     private SubjectMapper subjectMapper;
@@ -94,6 +93,7 @@ class StudentServiceTest {
                 teacherRepository,
                 subjectRepository,
                 courseGroupRepository,
+                groupRequestRepository,
                 studentMapper,
                 subjectMapper,
                 courseGroupMapper,

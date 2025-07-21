@@ -16,13 +16,12 @@ import com.acainfo.mvp.mapper.CourseGroupMapper;
 import com.acainfo.mvp.mapper.StudentMapper;
 import com.acainfo.mvp.mapper.SubjectMapper;
 import com.acainfo.mvp.model.CourseGroup;
+import com.acainfo.mvp.model.GroupRequest;
 import com.acainfo.mvp.model.Student;
 import com.acainfo.mvp.model.Subject;
 import com.acainfo.mvp.model.enums.CourseGroupStatus;
-import com.acainfo.mvp.repository.CourseGroupRepository;
-import com.acainfo.mvp.repository.StudentRepository;
-import com.acainfo.mvp.repository.SubjectRepository;
-import com.acainfo.mvp.repository.TeacherRepository;
+import com.acainfo.mvp.model.enums.RequestStatus;
+import com.acainfo.mvp.repository.*;
 import com.acainfo.mvp.util.SessionUtils;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +49,7 @@ public class StudentService {
     private final TeacherRepository teacherRepository;
     private final SubjectRepository subjectRepository;
     private final CourseGroupRepository courseGroupRepository;
+    private final GroupRequestRepository groupRequestRepository;
     private final StudentMapper studentMapper;
     private final SubjectMapper subjectMapper;
     private final CourseGroupMapper courseGroupMapper;
@@ -60,6 +60,7 @@ public class StudentService {
                           TeacherRepository teacherRepository,
                           SubjectRepository subjectRepository,
                           CourseGroupRepository courseGroupRepository,
+                          GroupRequestRepository groupRequestRepository,
                           StudentMapper studentMapper,
                           SubjectMapper subjectMapper,
                           CourseGroupMapper courseGroupMapper,
@@ -69,6 +70,7 @@ public class StudentService {
         this.teacherRepository = teacherRepository;
         this.subjectRepository = subjectRepository;
         this.courseGroupRepository = courseGroupRepository;
+        this.groupRequestRepository = groupRequestRepository;
         this.studentMapper = studentMapper;
         this.subjectMapper = subjectMapper;
         this.courseGroupMapper = courseGroupMapper;
@@ -500,6 +502,8 @@ public class StudentService {
             throw new ValidationException("No tiene permisos para realizar esta operación");
         }
     }
+
+
 }
 
 /**
