@@ -16,6 +16,7 @@ import com.acainfo.mvp.mapper.TeacherMapper;
 import com.acainfo.mvp.mapper.CourseGroupMapper;
 import com.acainfo.mvp.model.GroupSession;
 import com.acainfo.mvp.model.Teacher;
+import com.acainfo.mvp.model.enums.CourseGroupStatus;
 import com.acainfo.mvp.repository.GroupSessionRepository;
 import com.acainfo.mvp.repository.StudentRepository;
 import com.acainfo.mvp.repository.TeacherRepository;
@@ -501,6 +502,25 @@ public class TeacherService {
                     sessionUtils.getCurrentUserId(), teacherId);
             throw new ValidationException("No puede acceder a información de otros profesores");
         }
+    }
+
+    /**
+     * Verifica si un profesor puede ser eliminado.
+     * No puede eliminarse si tiene grupos ACTIVOS.
+     */
+    public boolean canDeleteTeacher(Long teacherId) {
+        validateAdminRole();
+        log.debug("Verificando si se puede eliminar profesor ID: {}", teacherId);
+
+        Teacher teacher = teacherRepository.findById(teacherId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Profesor no encontrado con ID: " + teacherId));
+
+        // Verificar si tiene grupos activos
+        boolean hasActiveGroups = teacher.getCourseGroups().stream()
+                .anyMatch(group -> CourseGroupStatus.ACTIVE.equals(group.getStatus()));
+
+        return !hasActiveGroups;
     }
 
     /**

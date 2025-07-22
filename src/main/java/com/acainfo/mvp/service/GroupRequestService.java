@@ -18,7 +18,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * Servicio para gestión de solicitudes de creación de grupos.
@@ -308,6 +310,70 @@ public class GroupRequestService {
                 .approvedRequests((int) approved)
                 .rejectedRequests((int) rejected)
                 .build();
+    }
+
+    /**
+     * Obtiene todas las solicitudes para una asignatura específica.
+     * Solo accesible para administradores.
+     */
+    public List<GroupRequestDto> getRequestsBySubject(Long subjectId) {
+        log.debug("Obteniendo solicitudes para asignatura ID: {}", subjectId);
+
+        if (!sessionUtils.isAdmin()) {
+            throw new ValidationException("Solo los administradores pueden acceder a esta información");
+        }
+
+        // Verificar que la asignatura existe
+        if (!subjectRepository.existsById(subjectId)) {
+            throw new ResourceNotFoundException("Asignatura no encontrada con ID: " + subjectId);
+        }
+
+        List<GroupRequest> requests = groupRequestRepository.findBySubjectId(subjectId);
+        return groupRequestMapper.toDtoList(requests);
+    }
+
+    /**
+     * Obtiene todas las solicitudes de un estudiante específico.
+     * Solo accesible para administradores.
+     */
+    public List<GroupRequestDto> getRequestsByStudent(Long studentId) {
+        log.debug("Obteniendo solicitudes del estudiante ID: {}", studentId);
+
+        if (!sessionUtils.isAdmin()) {
+            throw new ValidationException("Solo administradores pueden acceder a esta información");
+        }
+
+        // Verificar que el estudiante existe
+        if (!studentRepository.existsById(studentId)) {
+            throw new ResourceNotFoundException("Estudiante no encontrado con ID: " + studentId);
+        }
+
+        List<GroupRequest> requests = groupRequestRepository.findByStudentId(studentId);
+        return groupRequestMapper.toDtoList(requests);
+    }
+
+    /**
+     * Busca solicitudes según criterios múltiples.
+     * Solo accesible para administradores.
+     */
+    public List<GroupRequestDto> searchRequests(GroupRequestSearchCriteriaDto criteria) {
+        log.debug("Buscando solicitudes con criterios: {}", criteria);
+
+        if (!sessionUtils.isAdmin()) {
+            throw new ValidationException("Solo administradores pueden realizar búsquedas");
+        }
+
+        // El servicio solo se preocupa por la lógica de negocio
+        // La construcción de la consulta está encapsulada en el repositorio
+        List<GroupRequest> requests = groupRequestRepository.searchByCriteria(
+                criteria.getStatus(),
+                criteria.getStudentId(),
+                criteria.getSubjectId(),
+                criteria.getFromDate(),
+                criteria.getToDate()
+        );
+
+        return groupRequestMapper.toDtoList(requests);
     }
 
 }

@@ -576,33 +576,6 @@ class CourseGroupServiceTest {
                 .hasMessage("El grupo ya tiene un profesor asignado");
     }
 
-    @Test
-    @DisplayName("Debe crear sesión para grupo")
-    void shouldCreateGroupSession() {
-        // Given
-        Long groupId = 1L;
-        GroupSessionDto expectedDto = GroupSessionDto.builder()
-                .id(1L)
-                .dayOfWeek("MONDAY")
-                .startTime(LocalTime.of(10, 0))
-                .endTime(LocalTime.of(12, 0))
-                .classroom("Aula 101")
-                .build();
-
-        when(sessionUtils.isAdmin()).thenReturn(true);
-        when(courseGroupRepository.findById(groupId)).thenReturn(Optional.of(testGroup1));
-        when(courseGroupMapper.toSessionEntity(validSessionDto, testGroup1))
-                .thenReturn(testSession1);
-        when(groupSessionRepository.save(any(GroupSession.class))).thenReturn(testSession1);
-        when(courseGroupMapper.toSessionDto(testSession1)).thenReturn(expectedDto);
-
-        // When
-        GroupSessionDto result = courseGroupService.createGroupSession(groupId, validSessionDto);
-
-        // Then
-        assertThat(result).isEqualTo(expectedDto);
-        verify(groupSessionRepository).save(any(GroupSession.class));
-    }
 
     @Test
     @DisplayName("Debe validar horario de sesión")

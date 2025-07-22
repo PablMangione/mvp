@@ -2,14 +2,20 @@ package com.acainfo.mvp.mapper;
 
 import com.acainfo.mvp.dto.auth.CurrentUserDto;
 import com.acainfo.mvp.dto.auth.LoginResponseDto;
+import com.acainfo.mvp.dto.grouprequest.GroupRequestDto;
 import com.acainfo.mvp.dto.student.StudentRegistrationDto;
 import com.acainfo.mvp.dto.student.CreateStudentDto;
 import com.acainfo.mvp.dto.student.EnrollmentSummaryDto;
 import com.acainfo.mvp.dto.student.StudentDto;
 import com.acainfo.mvp.model.Enrollment;
+import com.acainfo.mvp.model.GroupRequest;
 import com.acainfo.mvp.model.Student;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Mapper para conversiones entre Student entity y sus DTOs.
@@ -132,6 +138,16 @@ public class StudentMapper {
                 .createdAt(enrollment.getCreatedAt())
                 .paymentStatus(enrollment.getPaymentStatus())
                 .build();
+    }
+
+    public List<StudentDto> toDtoList(List<Student> students) {
+        if (students == null) {
+            return new ArrayList<>();
+        }
+
+        return students.stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
     }
 
     /**

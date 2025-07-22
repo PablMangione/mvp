@@ -5,6 +5,7 @@ import com.acainfo.mvp.exception.student.ResourceNotFoundException;
 import com.acainfo.mvp.exception.student.ValidationException;
 import com.acainfo.mvp.mapper.SubjectMapper;
 import com.acainfo.mvp.model.Subject;
+import com.acainfo.mvp.model.enums.RequestStatus;
 import com.acainfo.mvp.repository.SubjectRepository;
 import com.acainfo.mvp.util.SessionUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -292,6 +293,28 @@ public class SubjectService {
                 .totalEnrollments(totalEnrollments)
                 .pendingGroupRequests((int) pendingRequests)
                 .build();
+    }
+
+    /**
+     * Verifica si una asignatura puede ser eliminada.
+     * No puede eliminarse si tiene grupos o solicitudes pendientes.
+     */
+    public boolean canDeleteSubject(Long subjectId) {
+        validateAdminRole();
+        log.debug("Verificando si se puede eliminar asignatura ID: {}", subjectId);
+
+        Subject subject = subjectRepository.findById(subjectId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Asignatura no encontrada con ID: " + subjectId));
+
+        // Verificar si tiene grupos
+        boolean hasGroups = !subject.getCourseGroups().isEmpty();
+
+        // Verificar si tiene solicitudes pendientes
+        boolean hasPendingRequests = subject.getGroupRequests().stream()
+                .anyMatch(request -> RequestStatus.PENDING.equals(request.getStatus()));
+
+        return !hasGroups && !hasPendingRequests;
     }
 
     /**

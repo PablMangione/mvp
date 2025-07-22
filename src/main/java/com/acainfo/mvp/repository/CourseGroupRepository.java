@@ -25,6 +25,9 @@ public interface CourseGroupRepository extends JpaRepository<CourseGroup, Long> 
     @EntityGraph(attributePaths = {"subject", "groupSessions"})
     List<CourseGroup> findByTeacherIsNull();
 
+    List<CourseGroup> findByTeacherId(Long teacherId);
+
+
     //Grupos con espacio disponible (para inscripción)
     @Query("SELECT cg FROM CourseGroup cg " +
             "JOIN FETCH cg.subject " +

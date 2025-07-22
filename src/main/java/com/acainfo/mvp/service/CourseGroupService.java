@@ -2,9 +2,11 @@ package com.acainfo.mvp.service;
 
 import com.acainfo.mvp.dto.coursegroup.*;
 import com.acainfo.mvp.dto.common.ApiResponseDto;
+import com.acainfo.mvp.dto.subject.SubjectDto;
 import com.acainfo.mvp.exception.student.ResourceNotFoundException;
 import com.acainfo.mvp.exception.student.ValidationException;
 import com.acainfo.mvp.mapper.CourseGroupMapper;
+import com.acainfo.mvp.mapper.SubjectMapper;
 import com.acainfo.mvp.model.*;
 import com.acainfo.mvp.model.enums.CourseGroupStatus;
 import com.acainfo.mvp.model.enums.DayOfWeek;
@@ -140,6 +142,21 @@ public class CourseGroupService {
 
         // Verificar si ya está inscrito
         return !enrollmentRepository.existsByStudentIdAndCourseGroupId(studentId, groupId);
+    }
+
+    /**
+     * Obtiene un grupo por su ID.
+     * Accesible solo para administradores.
+     */
+    public CourseGroupDto getGroupById(Long groupId) {
+        validateAdminRole();
+        log.debug("Obteniendo grupo ID: {}", groupId);
+
+        CourseGroup group = courseGroupRepository.findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Grupo no encontrado con ID: " + groupId));
+
+        return courseGroupMapper.toDto(group);
     }
 
     // ========== OPERACIONES DE PROFESOR ==========
@@ -297,11 +314,28 @@ public class CourseGroupService {
     }
 
     /**
+     * Obtiene todos los grupos de un profesor.
+     * Solo accesible para administradores.
+     */
+    public List<CourseGroupDto> getGroupsByTeacher(Long teacherId) {
+        validateAdminRole();
+        log.debug("Obteniendo grupos del profesor ID: {}", teacherId);
+
+        // Verificar que el profesor existe
+        if (!teacherRepository.existsById(teacherId)) {
+            throw new ResourceNotFoundException("Profesor no encontrado con ID: " + teacherId);
+        }
+
+        List<CourseGroup> groups = courseGroupRepository.findByTeacherId(teacherId);
+        return courseGroupMapper.toDtoList(groups);
+    }
+
+    /**
      * Crea una sesión (horario) para un grupo.
      * Define día, hora y aula para las clases.
      */
     @Transactional
-    public GroupSessionDto createGroupSession(Long groupId, CreateGroupSessionDto sessionDto) {
+    public CourseGroupDto createGroupSession(Long groupId, CreateGroupSessionDto sessionDto) {
         validateAdminRole();
         log.info("Creando sesión para grupo ID: {}", groupId);
 
@@ -321,7 +355,7 @@ public class CourseGroupService {
         try {
             session = groupSessionRepository.save(session);
             log.info("Sesión creada con ID: {} para grupo {}", session.getId(), groupId);
-            return courseGroupMapper.toSessionDto(session);
+            return courseGroupMapper.toDto(group);
         } catch (DataIntegrityViolationException e) {
             log.error("Error al crear sesión", e);
             throw new ValidationException(
@@ -544,6 +578,12 @@ public class CourseGroupService {
                 .paidEnrollments((int) paidEnrollments)
                 .pendingPayments(enrolledStudents - (int) paidEnrollments)
                 .build();
+    }
+
+    public Subject getSubjectById(Long subjectId) {
+        validateAdminRole();
+        return subjectRepository.getReferenceById(subjectId);
+
     }
 }
 

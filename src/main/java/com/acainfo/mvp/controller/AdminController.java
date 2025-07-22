@@ -5,6 +5,7 @@ import com.acainfo.mvp.dto.common.DeleteResponseDto;
 import com.acainfo.mvp.dto.common.PageResponseDto;
 import com.acainfo.mvp.dto.coursegroup.*;
 import com.acainfo.mvp.dto.grouprequest.GroupRequestDto;
+import com.acainfo.mvp.dto.grouprequest.GroupRequestSearchCriteriaDto;
 import com.acainfo.mvp.dto.grouprequest.UpdateRequestStatusDto;
 import com.acainfo.mvp.dto.student.CreateStudentDto;
 import com.acainfo.mvp.dto.student.StudentDto;
@@ -13,6 +14,8 @@ import com.acainfo.mvp.dto.subject.SubjectDto;
 import com.acainfo.mvp.dto.subject.UpdateSubjectDto;
 import com.acainfo.mvp.dto.teacher.CreateTeacherDto;
 import com.acainfo.mvp.dto.teacher.TeacherDto;
+import com.acainfo.mvp.mapper.SubjectMapper;
+import com.acainfo.mvp.model.enums.RequestStatus;
 import com.acainfo.mvp.service.*;
 import com.acainfo.mvp.util.SessionUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,11 +31,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Controlador REST para operaciones administrativas.
@@ -59,19 +65,21 @@ public class AdminController {
     private final CourseGroupService courseGroupService;
     private final GroupRequestService groupRequestService;
     private final SessionUtils sessionUtils;
+    private final SubjectMapper subjectMapper;
 
     public AdminController(StudentService studentService,
                            TeacherService teacherService,
                            SubjectService subjectService,
                            CourseGroupService courseGroupService,
                            GroupRequestService groupRequestService,
-                           SessionUtils sessionUtils) {
+                           SessionUtils sessionUtils, SubjectMapper subjectMapper) {
         this.studentService = studentService;
         this.teacherService = teacherService;
         this.subjectService = subjectService;
         this.courseGroupService = courseGroupService;
         this.groupRequestService = groupRequestService;
         this.sessionUtils = sessionUtils;
+        this.subjectMapper = subjectMapper;
     }
 
     // ========== GESTIÓN DE ALUMNOS ==========
@@ -216,6 +224,69 @@ public class AdminController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Verifica si un email ya está registrado en el sistema.
+     * Útil para validación en tiempo real en formularios.
+     *
+     * @param email Email a verificar
+     * @return true si el email ya existe, false si está disponible
+     */
+    @GetMapping("/students/check-email")
+    @Operation(
+            summary = "Verificar disponibilidad de email",
+            description = "Verifica si un email ya está registrado por otro estudiante. " +
+                    "Útil para validación en tiempo real durante el registro."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Verificación completada",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = Boolean.class)
+                    )
+            )
+    })
+    public ResponseEntity<Map<String, Boolean>> checkStudentEmail(
+            @RequestParam String email) {
+
+        log.debug("Verificando disponibilidad del email: {}", email);
+        boolean exists = studentService.emailExists(email);
+        return ResponseEntity.ok(Map.of("exists", exists));
+    }
+
+    /**
+     * Obtiene todas las solicitudes de grupo de un estudiante específico.
+     * Incluye solicitudes en todos los estados.
+     *
+     * @param studentId ID del estudiante
+     * @return Lista de solicitudes del estudiante
+     */
+    @GetMapping("/students/{studentId}/group-requests")
+    @Operation(
+            summary = "Solicitudes por estudiante",
+            description = "Obtiene el historial completo de solicitudes de grupo " +
+                    "de un estudiante específico."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Lista de solicitudes obtenida",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = GroupRequestDto.class)
+                    )
+            ),
+            @ApiResponse(responseCode = "404", description = "Estudiante no encontrado")
+    })
+    public ResponseEntity<List<GroupRequestDto>> getRequestsByStudent(
+            @PathVariable Long studentId) {
+
+        log.debug("Consultando solicitudes del estudiante ID: {}", studentId);
+        List<GroupRequestDto> requests = groupRequestService.getRequestsByStudent(studentId);
+        return ResponseEntity.ok(requests);
+    }
+
     // ========== GESTIÓN DE PROFESORES ==========
 
     /**
@@ -333,6 +404,68 @@ public class AdminController {
                 .build();
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Verifica si un profesor puede ser eliminado del sistema.
+     * Un profesor NO puede eliminarse si tiene grupos ACTIVOS asignados.
+     *
+     * @param teacherId ID del profesor
+     * @return true si puede eliminarse, false si tiene restricciones
+     */
+    @GetMapping("/teachers/{teacherId}/can-delete")
+    @Operation(
+            summary = "Verificar eliminación de profesor",
+            description = "Verifica si un profesor puede ser eliminado. " +
+                    "No se puede eliminar si tiene grupos activos asignados."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Verificación completada",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = Boolean.class)
+                    )
+            ),
+            @ApiResponse(responseCode = "404", description = "Profesor no encontrado")
+    })
+    public ResponseEntity<Map<String, Boolean>> canDeleteTeacher(@PathVariable Long teacherId) {
+        log.debug("Verificando si se puede eliminar profesor ID: {}", teacherId);
+        boolean canDelete = teacherService.canDeleteTeacher(teacherId);
+        return ResponseEntity.ok(Map.of("canDelete", canDelete));
+    }
+
+    /**
+     * Obtiene todos los grupos asignados a un profesor específico.
+     * Incluye grupos en todos los estados (PLANNED, ACTIVE, CLOSED).
+     *
+     * @param teacherId ID del profesor
+     * @return Lista de grupos del profesor
+     */
+    @GetMapping("/teachers/{teacherId}/groups")
+    @Operation(
+            summary = "Grupos por profesor",
+            description = "Obtiene todos los grupos asignados a un profesor específico. " +
+                    "Útil para gestionar carga docente y horarios."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Lista de grupos obtenida",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = CourseGroupDto.class)
+                    )
+            ),
+            @ApiResponse(responseCode = "404", description = "Profesor no encontrado")
+    })
+    public ResponseEntity<List<CourseGroupDto>> getGroupsByTeacher(
+            @PathVariable Long teacherId) {
+
+        log.debug("Consultando grupos del profesor ID: {}", teacherId);
+        List<CourseGroupDto> groups = courseGroupService.getGroupsByTeacher(teacherId);
+        return ResponseEntity.ok(groups);
     }
 
     // ========== GESTIÓN DE ASIGNATURAS ==========
@@ -479,6 +612,125 @@ public class AdminController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Obtiene todas las solicitudes de grupo para una asignatura específica.
+     * Útil para analizar la demanda de una asignatura.
+     *
+     * @param subjectId ID de la asignatura
+     * @return Lista de solicitudes para esa asignatura
+     */
+    @GetMapping("/subjects/{subjectId}/group-requests")
+    @Operation(
+            summary = "Solicitudes por asignatura",
+            description = "Obtiene todas las solicitudes de creación de grupo para una " +
+                    "asignatura específica. Permite analizar la demanda real."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Lista de solicitudes obtenida",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = GroupRequestDto.class)
+                    )
+            ),
+            @ApiResponse(responseCode = "404", description = "Asignatura no encontrada")
+    })
+    public ResponseEntity<List<GroupRequestDto>> getRequestsBySubject(
+            @PathVariable Long subjectId) {
+
+        log.debug("Admin consultando solicitudes para asignatura ID: {}", subjectId);
+        List<GroupRequestDto> requests = groupRequestService.getRequestsBySubject(subjectId);
+        return ResponseEntity.ok(requests);
+    }
+
+    /**
+     * Obtiene todas las solicitudes de grupo para una asignatura específica.
+     * Útil para analizar la demanda de una asignatura.
+     *
+     * @param subjectId ID de la asignatura
+     * @return Lista de solicitudes para esa asignatura
+     */
+    @GetMapping("/subjects/{subjectId}/groups")
+    @Operation(
+            summary = "Solicitudes por asignatura",
+            description = "Obtiene todas las solicitudes de creación de grupo para una " +
+                    "asignatura específica. Permite analizar la demanda real."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Lista de solicitudes obtenida",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = GroupRequestDto.class)
+                    )
+            ),
+            @ApiResponse(responseCode = "404", description = "Asignatura no encontrada")
+    })
+    public ResponseEntity<List<CourseGroupDto>> getGroupsBySubject(
+            @PathVariable Long subjectId) {
+
+        log.debug("Admin consultando grupos de una asignatura: {}", subjectId);
+        List<CourseGroupDto> requests = courseGroupService.getGroupsBySubject(subjectId);
+        return ResponseEntity.ok(requests);
+    }
+
+    @GetMapping("/subjects/{subjectId}")
+    @Operation(
+            summary = "Solicitudes por asignatura",
+            description = "Obtiene todas las solicitudes de creación de grupo para una " +
+                    "asignatura específica. Permite analizar la demanda real."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Lista de solicitudes obtenida",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = GroupRequestDto.class)
+                    )
+            ),
+            @ApiResponse(responseCode = "404", description = "Asignatura no encontrada")
+    })
+    public ResponseEntity<SubjectDto> getSubjectById(
+            @PathVariable Long subjectId) {
+        log.debug("Admin consultando solicitudes para asignatura ID: {}", subjectId);
+        SubjectDto requests = subjectMapper.toDto(
+                courseGroupService.getSubjectById(subjectId));
+        return ResponseEntity.ok(requests);
+    }
+
+    /**
+     * Verifica si una asignatura puede ser eliminada del sistema.
+     * No puede eliminarse si tiene grupos o solicitudes asociadas.
+     *
+     * @param subjectId ID de la asignatura
+     * @return true si puede eliminarse, false si tiene restricciones
+     */
+    @GetMapping("/subjects/{subjectId}/can-delete")
+    @Operation(
+            summary = "Verificar eliminación de asignatura",
+            description = "Verifica si una asignatura puede ser eliminada. " +
+                    "No se puede eliminar si tiene grupos o solicitudes pendientes."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Verificación completada",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = Boolean.class)
+                    )
+            ),
+            @ApiResponse(responseCode = "404", description = "Asignatura no encontrada")
+    })
+    public ResponseEntity<Map<String, Boolean>> canDeleteSubject(@PathVariable Long subjectId) {
+        log.debug("Verificando si se puede eliminar asignatura ID: {}", subjectId);
+        boolean canDelete = subjectService.canDeleteSubject(subjectId);
+        return ResponseEntity.ok(Map.of("canDelete", canDelete));
+    }
+
     // ========== GESTIÓN DE GRUPOS ==========
 
     /**
@@ -513,6 +765,36 @@ public class AdminController {
         CourseGroupDto createdGroup = courseGroupService.createGroup(createDto);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(createdGroup);
+    }
+
+    /**
+     * Obtiene la información detallada de un grupo específico.
+     * Incluye información de la asignatura, profesor, estado y capacidad.
+     *
+     * @param groupId ID del grupo
+     * @return Información completa del grupo
+     */
+    @GetMapping("/groups/{groupId}")
+    @Operation(
+            summary = "Obtener detalle de grupo",
+            description = "Obtiene toda la información de un grupo específico, " +
+                    "incluyendo asignatura, profesor asignado, estado y estudiantes inscritos."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Grupo encontrado",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = CourseGroupDto.class)
+                    )
+            ),
+            @ApiResponse(responseCode = "404", description = "Grupo no encontrado")
+    })
+    public ResponseEntity<CourseGroupDto> getGroupById(@PathVariable Long groupId) {
+        log.debug("Admin consultando grupo ID: {}", groupId);
+        CourseGroupDto group = courseGroupService.getGroupById(groupId);
+        return ResponseEntity.ok(group);
     }
 
     /**
@@ -621,12 +903,12 @@ public class AdminController {
             ),
             @ApiResponse(responseCode = "404", description = "Grupo no encontrado")
     })
-    public ResponseEntity<GroupSessionDto> createGroupSession(
+    public ResponseEntity<CourseGroupDto> createGroupSession(
             @PathVariable Long groupId,
             @Valid @RequestBody CreateGroupSessionDto sessionDto) {
 
         log.info("Admin creando sesión para grupo ID: {}", groupId);
-        GroupSessionDto createdSession = courseGroupService.createGroupSession(groupId, sessionDto);
+        CourseGroupDto createdSession = courseGroupService.createGroupSession(groupId, sessionDto);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(createdSession);
     }
@@ -674,6 +956,7 @@ public class AdminController {
 
         return ResponseEntity.ok(response);
     }
+
 
     // ========== GESTIÓN DE SOLICITUDES DE GRUPO ==========
 
@@ -740,6 +1023,55 @@ public class AdminController {
         GroupRequestDto updatedRequest = groupRequestService.updateRequestStatus(requestId, updateDto);
 
         return ResponseEntity.ok(updatedRequest);
+    }
+
+    /**
+     * Busca solicitudes de grupo con filtros avanzados.
+     * Permite combinar múltiples criterios de búsqueda.
+     *
+     * @param status Estado de la solicitud (PENDING, APPROVED, REJECTED)
+     * @param studentId ID del estudiante (opcional)
+     * @param subjectId ID de la asignatura (opcional)
+     * @param fromDate Fecha inicial del rango (opcional)
+     * @param toDate Fecha final del rango (opcional)
+     * @return Lista de solicitudes que cumplen los criterios
+     */
+    @GetMapping("/group-requests/search")
+    @Operation(
+            summary = "Búsqueda avanzada de solicitudes",
+            description = "Busca solicitudes de grupo aplicando múltiples filtros. " +
+                    "Todos los parámetros son opcionales y se combinan con AND."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Búsqueda completada",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = GroupRequestDto.class)
+                    )
+            )
+    })
+    public ResponseEntity<List<GroupRequestDto>> searchGroupRequests(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long studentId,
+            @RequestParam(required = false) Long subjectId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate) {
+
+        log.debug("Búsqueda de solicitudes con filtros - status: {}, studentId: {}, subjectId: {}",
+                status, studentId, subjectId);
+
+        GroupRequestSearchCriteriaDto criteria = GroupRequestSearchCriteriaDto.builder()
+                .status(status != null ? RequestStatus.valueOf(status) : null)
+                .studentId(studentId)
+                .subjectId(subjectId)
+                .fromDate(fromDate)
+                .toDate(toDate)
+                .build();
+
+        List<GroupRequestDto> results = groupRequestService.searchRequests(criteria);
+        return ResponseEntity.ok(results);
     }
 
     // ========== DTOs INTERNOS PARA DOCUMENTACIÓN ==========

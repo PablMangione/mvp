@@ -503,6 +503,16 @@ public class StudentService {
         }
     }
 
+    /**
+     * Verifica si un email ya está registrado.
+     * Solo accesible para administradores.
+     */
+    public boolean emailExists(String email) {
+        validateAdminRole();
+        log.debug("Verificando si existe el email: {}", email);
+        return studentRepository.existsByEmail(email);
+    }
+
 
 }
 

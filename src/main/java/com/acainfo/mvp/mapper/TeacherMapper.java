@@ -2,11 +2,13 @@ package com.acainfo.mvp.mapper;
 
 import com.acainfo.mvp.dto.auth.CurrentUserDto;
 import com.acainfo.mvp.dto.auth.LoginResponseDto;
+import com.acainfo.mvp.dto.student.StudentDto;
 import com.acainfo.mvp.dto.teacher.CreateTeacherDto;
 import com.acainfo.mvp.dto.teacher.ScheduleSlotDto;
 import com.acainfo.mvp.dto.teacher.TeacherDto;
 import com.acainfo.mvp.dto.teacher.TeacherScheduleDto;
 import com.acainfo.mvp.model.GroupSession;
+import com.acainfo.mvp.model.Student;
 import com.acainfo.mvp.model.Teacher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -137,6 +139,16 @@ public class TeacherMapper {
                 .groupType(session.getCourseGroup().getType().toString())
                 .enrolledStudents(session.getCourseGroup().getEnrollments().size())
                 .build();
+    }
+
+    public List<TeacherDto> toDtoList(List<Teacher> teachers) {
+        if (teachers == null) {
+            return new ArrayList<>();
+        }
+
+        return teachers.stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
     }
 
     /**
