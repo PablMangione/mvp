@@ -1,15 +1,15 @@
 package com.acainfo.mvp.mapper;
 
 import com.acainfo.mvp.dto.coursegroup.*;
-import com.acainfo.mvp.model.CourseGroup;
-import com.acainfo.mvp.model.GroupSession;
-import com.acainfo.mvp.model.Subject;
-import com.acainfo.mvp.model.Teacher;
+import com.acainfo.mvp.dto.grouprequest.GroupRequestDto;
+import com.acainfo.mvp.dto.subject.CourseGroupSummaryDto;
+import com.acainfo.mvp.model.*;
 import com.acainfo.mvp.model.enums.CourseGroupStatus;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -132,7 +132,11 @@ public class CourseGroupMapper {
             return null;
         }
 
-        CourseGroup courseGroup = CourseGroup.builder()
+        // Puede ser null
+        // Estado inicial
+        // Valor por defecto
+
+        return CourseGroup.builder()
                 .subject(subject)
                 .teacher(teacher) // Puede ser null
                 .type(dto.getType())
@@ -140,8 +144,6 @@ public class CourseGroupMapper {
                 .status(CourseGroupStatus.PLANNED) // Estado inicial
                 .maxCapacity(30) // Valor por defecto
                 .build();
-
-        return courseGroup;
     }
 
     /**
@@ -213,4 +215,5 @@ public class CourseGroupMapper {
         int available = maxCapacity - enrolled;
         return String.format("Plazas disponibles: %d de %d", available, maxCapacity);
     }
+
 }

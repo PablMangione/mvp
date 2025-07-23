@@ -1,12 +1,11 @@
 package com.acainfo.mvp.service;
 
 import com.acainfo.mvp.dto.coursegroup.*;
-import com.acainfo.mvp.dto.common.ApiResponseDto;
-import com.acainfo.mvp.dto.subject.SubjectDto;
+import com.acainfo.mvp.dto.subject.CourseGroupSummaryDto;
 import com.acainfo.mvp.exception.student.ResourceNotFoundException;
 import com.acainfo.mvp.exception.student.ValidationException;
 import com.acainfo.mvp.mapper.CourseGroupMapper;
-import com.acainfo.mvp.mapper.SubjectMapper;
+import com.acainfo.mvp.mapper.GroupSessionMapper;
 import com.acainfo.mvp.model.*;
 import com.acainfo.mvp.model.enums.CourseGroupStatus;
 import com.acainfo.mvp.model.enums.DayOfWeek;
@@ -19,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -36,6 +36,7 @@ public class CourseGroupService {
     private final GroupSessionRepository groupSessionRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final CourseGroupMapper courseGroupMapper;
+    private final GroupSessionMapper  groupSessionMapper;
     private final SessionUtils sessionUtils;
 
     public CourseGroupService(CourseGroupRepository courseGroupRepository,
@@ -44,6 +45,7 @@ public class CourseGroupService {
                               GroupSessionRepository groupSessionRepository,
                               EnrollmentRepository enrollmentRepository,
                               CourseGroupMapper courseGroupMapper,
+                              GroupSessionMapper groupSessionMapper,
                               SessionUtils sessionUtils) {
         this.courseGroupRepository = courseGroupRepository;
         this.subjectRepository = subjectRepository;
@@ -51,6 +53,7 @@ public class CourseGroupService {
         this.groupSessionRepository = groupSessionRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.courseGroupMapper = courseGroupMapper;
+        this.groupSessionMapper = groupSessionMapper;
         this.sessionUtils = sessionUtils;
     }
 
@@ -584,6 +587,17 @@ public class CourseGroupService {
         validateAdminRole();
         return subjectRepository.getReferenceById(subjectId);
 
+    }
+
+    public List<CourseGroupDto> getAllGroupsWithEnrollmentCount() {
+        List<CourseGroup> all = courseGroupRepository.findAll();
+        return courseGroupMapper.toDtoList(all);
+    }
+
+
+    public List<GroupSessionDto> getGroupSessions(Long groupId) {
+        List<GroupSession> all = groupSessionRepository.findByCourseGroupId(groupId);
+        return groupSessionMapper.toDtoList(all);
     }
 }
 

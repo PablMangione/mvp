@@ -1,6 +1,5 @@
 package com.acainfo.mvp.controller;
 
-import com.acainfo.mvp.dto.common.ApiResponseDto;
 import com.acainfo.mvp.dto.common.DeleteResponseDto;
 import com.acainfo.mvp.dto.common.PageResponseDto;
 import com.acainfo.mvp.dto.coursegroup.*;
@@ -768,6 +767,35 @@ public class AdminController {
     }
 
     /**
+     * Obtiene todos los grupos
+     *
+     *
+     * @return Información completa del grupo
+     */
+    @GetMapping("/groups/all")
+    @Operation(
+            summary = "Obtener todos los grupos",
+            description = "Obtiene toda la información de un grupo específico, " +
+                    "incluyendo asignatura, profesor asignado, estado y estudiantes inscritos."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Grupo encontrado",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = CourseGroupDto.class)
+                    )
+            ),
+            @ApiResponse(responseCode = "404", description = "Grupo no encontrado")
+    })
+    public ResponseEntity<List<CourseGroupDto>> getAllGroups() {
+        log.debug("Admin consultando todos los grupos");
+        List<CourseGroupDto> groups = courseGroupService.getAllGroupsWithEnrollmentCount();
+        return ResponseEntity.ok(groups);
+    }
+
+    /**
      * Obtiene la información detallada de un grupo específico.
      * Incluye información de la asignatura, profesor, estado y capacidad.
      *
@@ -911,6 +939,40 @@ public class AdminController {
         CourseGroupDto createdSession = courseGroupService.createGroupSession(groupId, sessionDto);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(createdSession);
+    }
+
+    /**
+     * Crea una sesión (horario) para un grupo.
+     *
+     * @param groupId ID del grupo
+     * @return sesiones del grupo
+     */
+    @GetMapping("/groups/{groupId}/sessions/")
+    @Operation(
+            summary = "Devuelve las sesiones del grupo",
+            description = "Se valida que solo sean las del grupo con id recibido"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Sesiones consultadas exitosamente",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = GroupSessionDto.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "No se encuentran las sesiones"
+            ),
+            @ApiResponse(responseCode = "404", description = "Grupo no encontrado")
+    })
+    public ResponseEntity<List<GroupSessionDto>> getGroupSessions(
+            @PathVariable Long groupId) {
+
+        log.info("Admin obteniendo todas las sesiones de un grupo: {}", groupId);
+        List<GroupSessionDto> dev = courseGroupService.getGroupSessions(groupId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(dev);
     }
 
     /**
