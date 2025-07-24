@@ -14,6 +14,7 @@ import com.acainfo.mvp.dto.subject.UpdateSubjectDto;
 import com.acainfo.mvp.dto.teacher.CreateTeacherDto;
 import com.acainfo.mvp.dto.teacher.TeacherDto;
 import com.acainfo.mvp.mapper.SubjectMapper;
+import com.acainfo.mvp.model.Student;
 import com.acainfo.mvp.model.enums.RequestStatus;
 import com.acainfo.mvp.service.*;
 import com.acainfo.mvp.util.SessionUtils;
@@ -945,6 +946,43 @@ public class AdminController {
      * Crea una sesión (horario) para un grupo.
      *
      * @param groupId ID del grupo
+     * @param sessionDto Datos de la sesión
+     * @return Sesión creada
+     */
+    @PutMapping("/groups/{groupId}/sessions")
+    @Operation(
+            summary = "Editar sesion de un grupo",
+            description = "Modifica una sesion (día, hora, aula) de un grupo. " +
+                    "Se validan conflictos de horario."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Sesión modificada exitosamente",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = GroupSessionDto.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Horario inválido o conflicto de horario"
+            ),
+            @ApiResponse(responseCode = "404", description = "Grupo no encontrado")
+    })
+    public ResponseEntity<CourseGroupDto> editGroupSession(
+            @PathVariable Long groupId,
+            @Valid @RequestBody GroupSessionDto sessionDto) {
+
+        log.info("Admin editando sesión para grupo ID: {}", groupId);
+        CourseGroupDto editedGroupSession = courseGroupService.editGroupSession(groupId, sessionDto);
+        return ResponseEntity.ok().body(editedGroupSession);
+    }
+
+    /**
+     * Crea una sesión (horario) para un grupo.
+     *
+     * @param groupId ID del grupo
      * @return sesiones del grupo
      */
     @GetMapping("/groups/{groupId}/sessions/")
@@ -972,7 +1010,36 @@ public class AdminController {
 
         log.info("Admin obteniendo todas las sesiones de un grupo: {}", groupId);
         List<GroupSessionDto> dev = courseGroupService.getGroupSessions(groupId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(dev);
+        return ResponseEntity.ok().body(dev);
+    }
+
+    /**
+     * Obtiene la lista de inscritos a un grupo
+     *
+     * @param groupId ID del grupo
+     * @return estudiantes del grupo
+     */
+    @GetMapping("/groups/{groupId}/students")
+    @Operation(
+            summary = "Devuelve los inscritos del grupo",
+            description = "Se valida que solo sean las del grupo con id recibido"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Estudiantes obtenidos exitosamente",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StudentDto.class)
+                    )
+            ),
+            @ApiResponse(responseCode = "404", description = "Grupo no encontrado")
+    })
+    public ResponseEntity<List<StudentDto>> getEnrolledStudents(
+            @PathVariable Long groupId) {
+        log.info("Admin obteniendo todos los estudiantes: {}", groupId);
+        List<StudentDto> dev = courseGroupService.getEnrolledStudents(groupId);
+        return ResponseEntity.ok().body(dev);
     }
 
     /**
@@ -1085,6 +1152,30 @@ public class AdminController {
         GroupRequestDto updatedRequest = groupRequestService.updateRequestStatus(requestId, updateDto);
 
         return ResponseEntity.ok(updatedRequest);
+    }
+
+    @GetMapping("/weekly-schedule/create-group")
+    @Operation(
+            summary = "Obtiene Sesiones de un aula y de un profesor",
+            description = "Obtiene todas las sesiones de un aula"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Schedule encontrado",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = CourseGroupDto.class)
+                    )
+            ),
+            @ApiResponse(responseCode = "404", description = "Schedule no encontrado")
+    })
+    public ResponseEntity<List<GroupSessionDto>> getSessionsByClassroomAndTeacher(
+            @RequestParam Long teacherId,
+            @RequestParam String classroom) {
+        log.debug("Admin consultando el horario de un aula y profesor: {}", teacherId);
+        List<GroupSessionDto> weeklySchedule = courseGroupService.getScheduleByTeacherAndClassroom(teacherId,classroom);
+        return ResponseEntity.ok(weeklySchedule);
     }
 
     /**

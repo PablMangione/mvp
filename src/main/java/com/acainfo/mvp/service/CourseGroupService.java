@@ -1,24 +1,25 @@
 package com.acainfo.mvp.service;
 
 import com.acainfo.mvp.dto.coursegroup.*;
-import com.acainfo.mvp.dto.subject.CourseGroupSummaryDto;
+import com.acainfo.mvp.dto.student.StudentDto;
 import com.acainfo.mvp.exception.student.ResourceNotFoundException;
 import com.acainfo.mvp.exception.student.ValidationException;
 import com.acainfo.mvp.mapper.CourseGroupMapper;
 import com.acainfo.mvp.mapper.GroupSessionMapper;
+import com.acainfo.mvp.mapper.StudentMapper;
 import com.acainfo.mvp.model.*;
 import com.acainfo.mvp.model.enums.CourseGroupStatus;
 import com.acainfo.mvp.model.enums.DayOfWeek;
 import com.acainfo.mvp.repository.*;
 import com.acainfo.mvp.util.SessionUtils;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalTime;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -37,6 +38,7 @@ public class CourseGroupService {
     private final EnrollmentRepository enrollmentRepository;
     private final CourseGroupMapper courseGroupMapper;
     private final GroupSessionMapper  groupSessionMapper;
+    private final StudentMapper studentMapper;
     private final SessionUtils sessionUtils;
 
     public CourseGroupService(CourseGroupRepository courseGroupRepository,
@@ -46,6 +48,7 @@ public class CourseGroupService {
                               EnrollmentRepository enrollmentRepository,
                               CourseGroupMapper courseGroupMapper,
                               GroupSessionMapper groupSessionMapper,
+                              StudentMapper studentMapper,
                               SessionUtils sessionUtils) {
         this.courseGroupRepository = courseGroupRepository;
         this.subjectRepository = subjectRepository;
@@ -54,6 +57,7 @@ public class CourseGroupService {
         this.enrollmentRepository = enrollmentRepository;
         this.courseGroupMapper = courseGroupMapper;
         this.groupSessionMapper = groupSessionMapper;
+        this.studentMapper = studentMapper;
         this.sessionUtils = sessionUtils;
     }
 
@@ -350,7 +354,7 @@ public class CourseGroupService {
         validateSessionTime(sessionDto);
 
         // Verificar conflictos de horario
-        validateSessionConflicts(group, sessionDto);
+        validateSessionConflictsOnCreate(group, sessionDto);
 
         // Crear sesión
         GroupSession session = courseGroupMapper.toSessionEntity(sessionDto, group);
@@ -485,10 +489,24 @@ public class CourseGroupService {
         }
     }
 
+    private void validateSessionTimeForEdit(GroupSessionDto sessionDto) {
+        LocalTime startTime = sessionDto.getStartTime();
+        LocalTime endTime = sessionDto.getEndTime();
+
+        if (!endTime.isAfter(startTime)) {
+            throw new ValidationException("La hora de fin debe ser posterior a la hora de inicio");
+        }
+
+        // Validar horario razonable (6:00 - 22:00)
+        if (startTime.isBefore(LocalTime.of(6, 0)) || endTime.isAfter(LocalTime.of(22, 0))) {
+            throw new ValidationException("El horario debe estar entre las 6:00 y las 22:00");
+        }
+    }
+
     /**
      * Valida conflictos de horario al crear una sesión.
      */
-    private void validateSessionConflicts(CourseGroup group, CreateGroupSessionDto sessionDto) {
+    private void validateSessionConflictsOnCreate(CourseGroup group, CreateGroupSessionDto sessionDto) {
         DayOfWeek dayOfWeek = DayOfWeek.valueOf(sessionDto.getDayOfWeek());
         LocalTime startTime = sessionDto.getStartTime();
         LocalTime endTime = sessionDto.getEndTime();
@@ -522,6 +540,69 @@ public class CourseGroupService {
                 }
             }
         }
+
+        // Valida con todas las clases del aula
+        List<GroupSession> classroomSessions = groupSessionRepository.
+                findByClassroomAndDayOfWeek(sessionDto.getClassroom(),dayOfWeek);
+        for (GroupSession classroomSession : classroomSessions) {
+            if(hasTimeOverlap(startTime,endTime,
+                    classroomSession.getStartTime(),classroomSession.getEndTime())) {
+                throw new ValidationException(
+                        "El aula está ocupada");
+            }
+        }
+
+    }
+
+    private void validateSessionConflictsOnEdit(CourseGroup group, GroupSessionDto sessionDto, long sessionId) {
+        DayOfWeek dayOfWeek = DayOfWeek.valueOf(sessionDto.getDayOfWeek());
+        LocalTime startTime = sessionDto.getStartTime();
+        LocalTime endTime = sessionDto.getEndTime();
+
+        // Verificar conflictos con otras sesiones del mismo grupo
+        for (GroupSession existingSession : group.getGroupSessions()) {
+            if (!existingSession.getId().equals(sessionId) &&
+                    existingSession.getDayOfWeek() == dayOfWeek) {
+                if (hasTimeOverlap(startTime, endTime,
+                        existingSession.getStartTime(),
+                        existingSession.getEndTime())) {
+                    throw new ValidationException(
+                            "Ya existe una sesión en ese horario para este grupo");
+                }
+            }
+        }
+
+        // Si el grupo tiene profesor, verificar conflictos con su horario
+        if (group.getTeacher() != null) {
+            List<GroupSession> teacherSessions = groupSessionRepository
+                    .findByTeacherId(group.getTeacher().getId());
+
+            for (GroupSession teacherSession : teacherSessions) {
+                if (!teacherSession.getId().equals(sessionId) &&
+                        teacherSession.getDayOfWeek() == dayOfWeek &&
+                        !teacherSession.getCourseGroup().getId().equals(group.getId())) {
+                    if (hasTimeOverlap(startTime, endTime,
+                            teacherSession.getStartTime(),
+                            teacherSession.getEndTime())) {
+                        throw new ValidationException(
+                                "El profesor tiene otro grupo en ese horario");
+                    }
+                }
+            }
+        }
+
+        // Valida con todas las clases del aula
+        List<GroupSession> classroomSessions = groupSessionRepository.
+                findByClassroomAndDayOfWeek(sessionDto.getClassroom(),dayOfWeek);
+        for (GroupSession classroomSession : classroomSessions) {
+            if(!classroomSession.getId().equals(sessionId) &&
+                    hasTimeOverlap(startTime,endTime,
+                    classroomSession.getStartTime(),classroomSession.getEndTime())) {
+                throw new ValidationException(
+                        "El aula está ocupada");
+            }
+        }
+
     }
 
     /**
@@ -598,6 +679,88 @@ public class CourseGroupService {
     public List<GroupSessionDto> getGroupSessions(Long groupId) {
         List<GroupSession> all = groupSessionRepository.findByCourseGroupId(groupId);
         return groupSessionMapper.toDtoList(all);
+    }
+
+    /**
+     * Edita una sesión existente de un grupo.
+     * Actualiza día, hora y aula manteniendo las validaciones de conflictos.
+     *
+     * @param groupId ID del grupo al que pertenece la sesión
+     * @param sessionDto DTO con los nuevos datos de la sesión, incluyendo el ID
+     * @return El grupo actualizado con la sesión modificada
+     */
+    @Transactional
+    public CourseGroupDto editGroupSession(Long groupId, GroupSessionDto sessionDto) {
+        validateAdminRole();
+        log.info("Editando sesión ID: {} del grupo ID: {}", sessionDto.getId(), groupId);
+
+        // Verificar que el grupo existe
+        CourseGroup group = courseGroupRepository.findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Grupo no encontrado con ID: " + groupId));
+
+        // Buscar la sesión específica dentro del grupo
+        GroupSession sessionToEdit = group.getGroupSessions().stream()
+                .filter(session -> session.getId().equals(sessionDto.getId()))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Sesión no encontrada con ID: " + sessionDto.getId() +
+                                " en el grupo: " + groupId));
+
+        // Validar que los nuevos horarios sean correctos
+        validateSessionTimeForEdit(sessionDto);
+
+        // Verificar conflictos de horario, excluyendo la sesión actual
+        validateSessionConflictsOnEdit(group, sessionDto, sessionToEdit.getId());
+
+        sessionToEdit.setClassroom(sessionDto.getClassroom());
+        sessionToEdit.setEndTime(sessionDto.getEndTime());
+        sessionToEdit.setStartTime(sessionDto.getStartTime());
+        sessionToEdit.setDayOfWeek(DayOfWeek.valueOf(sessionDto.getDayOfWeek()));
+        try {
+            // Guardar la sesión actualizada
+            sessionToEdit = groupSessionRepository.save(sessionToEdit);
+            group = courseGroupRepository.findById(groupId)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                    "Sesión no encontrada con ID: " + sessionDto.getId() +
+                            " en el grupo: " + groupId));
+            log.info("Sesión ID: {} actualizada exitosamente para grupo {}",
+                    sessionToEdit.getId(), groupId);
+            // Devolver el grupo completo actualizado
+            return courseGroupMapper.toDto(group);
+        } catch (DataIntegrityViolationException e) {
+            log.error("Error al actualizar sesión", e);
+            throw new ValidationException(
+                    "Error al actualizar la sesión. Verifique que no existan conflictos.");
+        }
+    }
+
+    @Transactional
+    public List<StudentDto> getEnrolledStudents(Long groupId) {
+        validateAdminRole();
+        log.info("Obteniendo estudiantes del grupo ID: {}", groupId);
+        // Verificar que el grupo existe
+        CourseGroup group = courseGroupRepository.findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Grupo no encontrado con ID: " + groupId));
+        List<Enrollment> enrolled = group.getEnrollments().stream().toList();
+        List<Student> dev = new ArrayList<>();
+        for (Enrollment enrollment : enrolled) {
+            dev.add(enrollment.getStudent());
+        }
+        return  studentMapper.toDtoList(dev);
+    }
+
+    @Transactional
+    public List<GroupSessionDto> getScheduleByTeacherAndClassroom(Long teacherId, @Valid String classroom) {
+        validateAdminRole();
+        List<GroupSession> teacherSessions = groupSessionRepository.findByTeacherId(teacherId);
+        List<GroupSession> classroomSessions = groupSessionRepository.findByClassroom(classroom);
+        Set<GroupSession> aux = new HashSet<>();
+        aux.addAll(teacherSessions);
+        aux.addAll(classroomSessions);
+        List<GroupSession> dev = new ArrayList<>(aux);
+        return groupSessionMapper.toDtoList(dev);
     }
 }
 

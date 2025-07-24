@@ -2,6 +2,8 @@ package com.acainfo.mvp.repository;
 
 import com.acainfo.mvp.model.GroupSession;
 import com.acainfo.mvp.model.enums.DayOfWeek;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -26,4 +28,8 @@ public interface GroupSessionRepository extends JpaRepository<GroupSession, Long
             "WHERE t.id = :teacherId " +
             "ORDER BY gs.dayOfWeek, gs.startTime")
     List<GroupSession> findByTeacherId(@Param("teacherId") Long teacherId);
+
+    List<GroupSession> findByClassroomAndDayOfWeek(@Size(max = 50, message = "Classroom must not exceed 50 characters") String classroom, @NotNull(message = "Day of week is required") DayOfWeek dayOfWeek);
+
+    List<GroupSession> findByClassroom(String classroom);
 }

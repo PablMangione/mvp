@@ -5,6 +5,7 @@ import com.acainfo.mvp.exception.student.ResourceNotFoundException;
 import com.acainfo.mvp.exception.student.ValidationException;
 import com.acainfo.mvp.mapper.CourseGroupMapper;
 import com.acainfo.mvp.mapper.GroupSessionMapper;
+import com.acainfo.mvp.mapper.StudentMapper;
 import com.acainfo.mvp.model.*;
 import com.acainfo.mvp.model.enums.CourseGroupStatus;
 import com.acainfo.mvp.model.enums.CourseGroupType;
@@ -54,6 +55,8 @@ class CourseGroupServiceTest {
     @Mock
     private GroupSessionMapper groupSessionMapper;
     @Mock
+    private StudentMapper studentMapper;
+    @Mock
     private SessionUtils sessionUtils;
 
     private CourseGroupService courseGroupService;
@@ -83,6 +86,7 @@ class CourseGroupServiceTest {
                 enrollmentRepository,
                 courseGroupMapper,
                 groupSessionMapper,
+                studentMapper,
                 sessionUtils
         );
 
