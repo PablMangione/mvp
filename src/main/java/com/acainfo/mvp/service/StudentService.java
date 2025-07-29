@@ -513,6 +513,34 @@ public class StudentService {
         return studentRepository.existsByEmail(email);
     }
 
+    /**
+     * Verifica si un estudiante puede ser eliminado.
+     * Un estudiante NO puede eliminarse si tiene inscripciones ACTIVAS.
+     * Solo accesible para administradores.
+     *
+     * @param studentId ID del estudiante
+     * @return true si puede eliminarse, false si tiene restricciones
+     */
+    public boolean canDeleteStudent(Long studentId) {
+        validateAdminRole();
+        log.debug("Verificando si el estudiante ID: {} puede ser eliminado", studentId);
+
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Estudiante no encontrado con ID: " + studentId));
+
+        // Verificar si tiene inscripciones activas
+        long activeEnrollments = student.getEnrollments().stream()
+                .filter(e -> "ACTIVE".equals(e.getCourseGroup().getStatus().name()))
+                .count();
+
+        boolean canDelete = activeEnrollments == 0;
+
+        log.debug("Estudiante ID: {} - Tiene {} inscripciones activas, Puede eliminarse: {}",
+                studentId, activeEnrollments, canDelete);
+
+        return canDelete;
+    }
 
 }
 
