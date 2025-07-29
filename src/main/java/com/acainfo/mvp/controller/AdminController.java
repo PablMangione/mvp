@@ -290,9 +290,8 @@ public class AdminController {
     // ========== GESTIÓN DE PROFESORES ==========
 
     /**
-     * Obtiene todos los profesores con paginación.
-     *
-     * @param pageable Parámetros de paginación
+     * Obtiene todos los profesores.
+
      * @return Página de profesores
      */
     @GetMapping("/teachers")
@@ -312,11 +311,10 @@ public class AdminController {
             @ApiResponse(responseCode = "401", description = "No autenticado"),
             @ApiResponse(responseCode = "403", description = "No tiene permisos")
     })
-    public ResponseEntity<PageResponseDto<TeacherDto>> getAllTeachers(
-            @PageableDefault(size = 20, sort = "name") Pageable pageable) {
-        log.debug("Admin consultando lista de profesores, página: {}", pageable.getPageNumber());
-        Page<TeacherDto> teachers = teacherService.getAllTeachers(pageable);
-        return ResponseEntity.ok(PageResponseDto.from(teachers)); // Cambiar aquí también
+    public ResponseEntity<List<TeacherDto>> getAllTeachers() {
+        log.debug("Admin consultando lista de profesores");
+        List<TeacherDto> teachers = teacherService.getAllTeachers();
+        return ResponseEntity.ok(teachers);
     }
 
     /**
@@ -862,6 +860,46 @@ public class AdminController {
 
         log.info("Admin cambiando estado del grupo {} a {}", groupId, statusDto.getStatus());
         CourseGroupDto updatedGroup = courseGroupService.updateGroupStatus(groupId, statusDto);
+
+        return ResponseEntity.ok(updatedGroup);
+    }
+
+    /**
+     * Cambia el estado de un grupo (planificado → activo → cerrado).
+     *
+     * @param groupId ID del grupo
+     * @param editedGroup nuevos datos
+     * @return Grupo actualizado
+     */
+    @PutMapping("/groups/{groupId}")
+    @Operation(
+            summary = "Cambiar datos de un grupo",
+            description = "Cambia los datos. " +
+                    "type" +
+                    "price" +
+                    "teacher"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Actualizado exitosamente",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = CourseGroupDto.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Transición de estado no permitida"
+            ),
+            @ApiResponse(responseCode = "404", description = "Grupo no encontrado")
+    })
+    public ResponseEntity<CourseGroupDto> updateGroup(
+            @PathVariable Long groupId,
+            @Valid @RequestBody CourseGroupDto editedGroup) {
+
+        log.info("Admin editando el grupo {}", groupId);
+        CourseGroupDto updatedGroup = courseGroupService.updateGroup(groupId, editedGroup);
 
         return ResponseEntity.ok(updatedGroup);
     }

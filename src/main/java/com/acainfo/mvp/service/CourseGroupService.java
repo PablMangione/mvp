@@ -762,6 +762,37 @@ public class CourseGroupService {
         List<GroupSession> dev = new ArrayList<>(aux);
         return groupSessionMapper.toDtoList(dev);
     }
+
+    @Transactional
+    public CourseGroupDto updateGroup(Long groupId, @Valid CourseGroupDto editedGroup) {
+        validateAdminRole();
+        log.info("Actualizando el grupo ID: {}", groupId);
+
+        CourseGroup group = courseGroupRepository.findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Grupo no encontrado con ID: " + groupId));
+
+
+        // Actualizar datos
+        group.setType(editedGroup.getType());
+        group.setPrice(editedGroup.getPrice());
+        group.setTeacher(teacherRepository.findById(editedGroup.getTeacherId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Profesor no encontrado con ID " + editedGroup.getTeacherId())));
+        group.setMaxCapacity(editedGroup.getMaxCapacity());
+
+        try {
+            courseGroupRepository.save(group);
+            log.info("Grupo actualizado con id {}", groupId);
+            group = courseGroupRepository.findById(groupId).
+                    orElseThrow(() -> new ResourceNotFoundException(
+                    "Grupo no encontrado con ID: " + groupId));
+            return courseGroupMapper.toDto(group);
+        } catch (DataIntegrityViolationException e) {
+            log.error("Error al actualizar el grupo", e);
+            throw new ValidationException("Error al actualizar el grupo");
+        }
+    }
 }
 
 /**

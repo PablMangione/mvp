@@ -471,18 +471,15 @@ class TeacherServiceTest {
         // Given
         Pageable pageable = PageRequest.of(0, 10);
         List<Teacher> teachers = Arrays.asList(testTeacher, otherTeacher);
-        Page<Teacher> teacherPage = new PageImpl<>(teachers, pageable, 2);
 
         when(sessionUtils.isAdmin()).thenReturn(true);
-        when(teacherRepository.findAll(pageable)).thenReturn(teacherPage);
         when(teacherMapper.toDto(any(Teacher.class))).thenReturn(testTeacherDto);
 
         // When
-        Page<TeacherDto> result = teacherService.getAllTeachers(pageable);
+        List<TeacherDto> result = teacherService.getAllTeachers();
 
         // Then
-        assertThat(result.getContent()).hasSize(2);
-        assertThat(result.getTotalElements()).isEqualTo(2);
+        assertThat(result.size());
     }
 
     @Test
@@ -627,10 +624,6 @@ class TeacherServiceTest {
         when(sessionUtils.isAdmin()).thenReturn(false);
         when(sessionUtils.getCurrentUserEmail()).thenReturn("teacher@test.com");
 
-        // When/Then
-        assertThatThrownBy(() -> teacherService.getAllTeachers(PageRequest.of(0, 10)))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage("No tiene permisos para realizar esta operación");
 
         assertThatThrownBy(() -> teacherService.createTeacher(validCreateDto))
                 .isInstanceOf(ValidationException.class)

@@ -328,12 +328,12 @@ public class TeacherService {
      * Obtiene todos los profesores con paginación.
      * Solo accesible para administradores.
      */
-    public Page<TeacherDto> getAllTeachers(Pageable pageable) {
+    public List<TeacherDto> getAllTeachers() {
         validateAdminRole();
-        log.debug("Obteniendo todos los profesores - página: {}", pageable.getPageNumber());
+        log.debug("Obteniendo todos los profesores");
 
-        Page<Teacher> teachers = teacherRepository.findAll(pageable);
-        return teachers.map(teacherMapper::toDto);
+        List<Teacher> teachers = teacherRepository.findAll();
+        return teacherMapper.toDtoList(teachers);
     }
 
     /**
@@ -547,6 +547,12 @@ public class TeacherService {
     private boolean hasTimeOverlap(LocalTime start1, LocalTime end1,
                                    LocalTime start2, LocalTime end2) {
         return start1.isBefore(end2) && start2.isBefore(end1);
+    }
+
+    public boolean emailExists(String email) {
+        validateAdminRole();
+        log.debug("Verificando si existe el email: {}", email);
+        return teacherRepository.existsByEmail(email);
     }
 }
 

@@ -2,6 +2,7 @@ package com.acainfo.mvp.mapper;
 
 import com.acainfo.mvp.dto.auth.CurrentUserDto;
 import com.acainfo.mvp.dto.auth.LoginResponseDto;
+import com.acainfo.mvp.dto.common.PageResponseDto;
 import com.acainfo.mvp.dto.grouprequest.GroupRequestDto;
 import com.acainfo.mvp.dto.student.StudentRegistrationDto;
 import com.acainfo.mvp.dto.student.CreateStudentDto;
@@ -10,6 +11,7 @@ import com.acainfo.mvp.dto.student.StudentDto;
 import com.acainfo.mvp.model.Enrollment;
 import com.acainfo.mvp.model.GroupRequest;
 import com.acainfo.mvp.model.Student;
+import org.springframework.data.domain.Page;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -148,6 +150,18 @@ public class StudentMapper {
         return students.stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
+    }
+
+    public PageResponseDto<StudentDto> toPageResponseDto(Page<StudentDto> studentPage) {
+        return PageResponseDto.<StudentDto>builder()
+                .content(studentPage.getContent())
+                .pageNumber(studentPage.getNumber())
+                .pageSize(studentPage.getSize())
+                .totalElements(studentPage.getTotalElements())
+                .totalPages(studentPage.getTotalPages())
+                .last(studentPage.isLast())
+                .first(studentPage.isFirst())
+                .build();
     }
 
     /**

@@ -2,6 +2,7 @@ package com.acainfo.mvp.mapper;
 
 import com.acainfo.mvp.dto.auth.CurrentUserDto;
 import com.acainfo.mvp.dto.auth.LoginResponseDto;
+import com.acainfo.mvp.dto.common.PageResponseDto;
 import com.acainfo.mvp.dto.student.StudentDto;
 import com.acainfo.mvp.dto.teacher.CreateTeacherDto;
 import com.acainfo.mvp.dto.teacher.ScheduleSlotDto;
@@ -10,6 +11,7 @@ import com.acainfo.mvp.dto.teacher.TeacherScheduleDto;
 import com.acainfo.mvp.model.GroupSession;
 import com.acainfo.mvp.model.Student;
 import com.acainfo.mvp.model.Teacher;
+import org.springframework.data.domain.Page;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -39,10 +41,12 @@ public class TeacherMapper {
             return null;
         }
 
-        return TeacherDto.builder()
+        TeacherDto dev = TeacherDto.builder()
                 .name(teacher.getName())
                 .email(teacher.getEmail())
                 .build();
+        dev.setId(teacher.getId());
+        return dev;
     }
 
     /**
@@ -117,6 +121,18 @@ public class TeacherMapper {
                 .teacherId(teacher.getId())
                 .teacherName(teacher.getName())
                 .schedule(schedule)
+                .build();
+    }
+
+    public PageResponseDto<TeacherDto> toPageResponseDto(Page<TeacherDto> page) {
+        return PageResponseDto.<TeacherDto>builder()
+                .content(page.getContent())
+                .pageNumber(page.getNumber())
+                .pageSize(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .last(page.isLast())
+                .first(page.isFirst())
                 .build();
     }
 
