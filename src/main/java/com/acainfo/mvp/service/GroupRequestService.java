@@ -15,9 +15,13 @@ import com.acainfo.mvp.repository.SubjectRepository;
 import com.acainfo.mvp.util.SessionUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Pageable;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
@@ -107,6 +111,108 @@ public class GroupRequestService {
         } catch (Exception e) {
             log.error("Error inesperado al crear solicitud de grupo", e);
             return groupRequestMapper.toErrorResponse("Error al procesar la solicitud");
+        }
+    }
+
+    /**
+     * Obtiene todas las solicitudes con paginación.
+     * Solo accesible para administradores.
+     *
+     * @param pageable Configuración de paginación
+     * @return Página de solicitudes
+     */
+    public Page<GroupRequestDto> getAllRequests(Pageable pageable) {
+        log.debug("Obteniendo todas las solicitudes con paginacion");
+
+        if (!sessionUtils.isAdmin()) {
+            throw new ValidationException("Solo los administradores pueden ver todas las solicitudes");
+        }
+
+        Page<GroupRequest> requests = groupRequestRepository.findAll(pageable);
+        return requests.map(groupRequestMapper::toDto);
+    }
+
+    /**
+     * Obtiene el detalle de una solicitud específica.
+     * Solo accesible para administradores.
+     *
+     * @param requestId ID de la solicitud
+     * @return Detalle de la solicitud
+     */
+    public GroupRequestDto getRequestById(Long requestId) {
+        log.debug("Obteniendo detalle de solicitud ID: {}", requestId);
+
+        if (!sessionUtils.isAdmin()) {
+            throw new ValidationException("Solo los administradores pueden ver detalles de solicitudes");
+        }
+
+        GroupRequest request = groupRequestRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Solicitud no encontrada con ID: " + requestId));
+
+        return groupRequestMapper.toDto(request);
+    }
+
+    /**
+     * Obtiene solicitudes filtradas por estado.
+     * Solo accesible para administradores.
+     *
+     * @param status Estado a filtrar
+     * @return Lista de solicitudes con el estado especificado
+     */
+    public List<GroupRequestDto> getRequestsByStatus(RequestStatus status) {
+        log.debug("Obteniendo solicitudes con estado: {}", status);
+
+        if (!sessionUtils.isAdmin()) {
+            throw new ValidationException("Solo los administradores pueden filtrar solicitudes por estado");
+        }
+
+        List<GroupRequest> requests = groupRequestRepository.findByStatus(status);
+
+        log.info("Encontradas {} solicitudes con estado {}", requests.size(), status);
+        return groupRequestMapper.toDtoList(requests);
+    }
+
+    /**
+     * Elimina una solicitud del sistema.
+     * Solo se pueden eliminar solicitudes rechazadas o muy antiguas.
+     * Solo accesible para administradores.
+     *
+     * @param requestId ID de la solicitud a eliminar
+     */
+    @Transactional
+    public void deleteRequest(Long requestId) {
+        log.info("Eliminando solicitud ID: {}", requestId);
+
+        if (!sessionUtils.isAdmin()) {
+            throw new ValidationException("Solo los administradores pueden eliminar solicitudes");
+        }
+
+        GroupRequest request = groupRequestRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Solicitud no encontrada con ID: " + requestId));
+
+        // Solo permitir eliminar solicitudes rechazadas
+        if (request.getStatus() != RequestStatus.REJECTED) {
+            throw new ValidationException(
+                    "Solo se pueden eliminar solicitudes rechazadas. " +
+                            "Esta solicitud está en estado: " + request.getStatus());
+        }
+
+        // Verificar antigüedad (opcional - por ejemplo, más de 6 meses)
+        if (request.getCreatedAt() != null &&
+                request.getCreatedAt().isAfter(LocalDateTime.now().minusMonths(6))) {
+            throw new ValidationException(
+                    "Solo se pueden eliminar solicitudes rechazadas con más de 6 meses de antigüedad");
+        }
+
+        try {
+            groupRequestRepository.delete(request);
+            log.info("Solicitud {} eliminada exitosamente", requestId);
+        } catch (DataIntegrityViolationException e) {
+            log.error("Error al eliminar solicitud", e);
+            throw new ValidationException(
+                    "No se puede eliminar la solicitud debido a dependencias existentes");
         }
     }
 
