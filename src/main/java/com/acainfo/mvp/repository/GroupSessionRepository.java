@@ -29,7 +29,9 @@ public interface GroupSessionRepository extends JpaRepository<GroupSession, Long
             "ORDER BY gs.dayOfWeek, gs.startTime")
     List<GroupSession> findByTeacherId(@Param("teacherId") Long teacherId);
 
-    List<GroupSession> findByClassroomAndDayOfWeek(@Size(max = 50, message = "Classroom must not exceed 50 characters") String classroom, @NotNull(message = "Day of week is required") DayOfWeek dayOfWeek);
+    List<GroupSession> findByClassroomAndDayOfWeek(
+            @Size(max = 50, message = "Classroom must not exceed 50 characters") String classroom,
+            @NotNull(message = "Day of week is required") DayOfWeek dayOfWeek);
 
     List<GroupSession> findByClassroom(String classroom);
 }

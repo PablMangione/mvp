@@ -3,7 +3,7 @@ package com.acainfo.mvp.controller;
 import com.acainfo.mvp.dto.auth.ChangePasswordDto;
 import com.acainfo.mvp.dto.common.ApiResponseDto;
 import com.acainfo.mvp.dto.coursegroup.CourseGroupDto;
-import com.acainfo.mvp.dto.coursegroup.GroupSessionDto;
+import com.acainfo.mvp.dto.groupsession.GroupSessionDto;
 import com.acainfo.mvp.dto.teacher.TeacherDto;
 import com.acainfo.mvp.dto.teacher.TeacherScheduleDto;
 import com.acainfo.mvp.service.TeacherService;

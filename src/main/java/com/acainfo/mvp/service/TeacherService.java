@@ -3,7 +3,7 @@ package com.acainfo.mvp.service;
 import com.acainfo.mvp.dto.auth.ChangePasswordDto;
 import com.acainfo.mvp.dto.common.ApiResponseDto;
 import com.acainfo.mvp.dto.coursegroup.CourseGroupDto;
-import com.acainfo.mvp.dto.coursegroup.GroupSessionDto;
+import com.acainfo.mvp.dto.groupsession.GroupSessionDto;
 import com.acainfo.mvp.dto.teacher.CreateTeacherDto;
 import com.acainfo.mvp.dto.teacher.TeacherDto;
 import com.acainfo.mvp.dto.teacher.TeacherScheduleDto;
@@ -23,8 +23,6 @@ import com.acainfo.mvp.repository.TeacherRepository;
 import com.acainfo.mvp.util.SessionUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

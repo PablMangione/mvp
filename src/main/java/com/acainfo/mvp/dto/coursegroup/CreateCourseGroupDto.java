@@ -1,5 +1,6 @@
 package com.acainfo.mvp.dto.coursegroup;
 
+import com.acainfo.mvp.dto.groupsession.CreateGroupSessionDto;
 import com.acainfo.mvp.model.enums.CourseGroupType;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;

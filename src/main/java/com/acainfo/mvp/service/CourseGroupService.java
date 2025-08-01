@@ -1,6 +1,8 @@
 package com.acainfo.mvp.service;
 
 import com.acainfo.mvp.dto.coursegroup.*;
+import com.acainfo.mvp.dto.groupsession.CreateGroupSessionDto;
+import com.acainfo.mvp.dto.groupsession.GroupSessionDto;
 import com.acainfo.mvp.dto.student.StudentDto;
 import com.acainfo.mvp.exception.student.ResourceNotFoundException;
 import com.acainfo.mvp.exception.student.ValidationException;

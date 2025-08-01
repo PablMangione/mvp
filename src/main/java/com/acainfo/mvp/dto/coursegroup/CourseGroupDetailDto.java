@@ -1,6 +1,7 @@
 package com.acainfo.mvp.dto.coursegroup;
 
 import com.acainfo.mvp.dto.common.BaseDto;
+import com.acainfo.mvp.dto.groupsession.GroupSessionDto;
 import com.acainfo.mvp.model.enums.CourseGroupStatus;
 import com.acainfo.mvp.model.enums.CourseGroupType;
 import lombok.*;

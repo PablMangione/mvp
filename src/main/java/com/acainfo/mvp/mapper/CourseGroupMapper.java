@@ -1,15 +1,14 @@
 package com.acainfo.mvp.mapper;
 
 import com.acainfo.mvp.dto.coursegroup.*;
-import com.acainfo.mvp.dto.grouprequest.GroupRequestDto;
-import com.acainfo.mvp.dto.subject.CourseGroupSummaryDto;
+import com.acainfo.mvp.dto.groupsession.CreateGroupSessionDto;
+import com.acainfo.mvp.dto.groupsession.GroupSessionDto;
 import com.acainfo.mvp.model.*;
 import com.acainfo.mvp.model.enums.CourseGroupStatus;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
