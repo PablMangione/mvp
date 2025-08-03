@@ -1,4 +1,4 @@
-package com.acainfo.mvp.controller;
+package com.acainfo.mvp.controller.admin;
 
 import com.acainfo.mvp.dto.grouprequest.*;
 import com.acainfo.mvp.model.enums.RequestStatus;

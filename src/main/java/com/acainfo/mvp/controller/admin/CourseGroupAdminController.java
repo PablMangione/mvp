@@ -1,4 +1,4 @@
-package com.acainfo.mvp.controller;
+package com.acainfo.mvp.controller.admin;
 
 import com.acainfo.mvp.dto.coursegroup.*;
 import com.acainfo.mvp.dto.groupsession.CreateGroupSessionDto;
